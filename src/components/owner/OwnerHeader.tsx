@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Search,
   Bell,
@@ -9,9 +9,13 @@ import {
   Shield,
   Sparkles,
   ExternalLink,
+  X,
+  Database,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ownerService, OwnerNotification } from '../../services/ownerService';
+import { bookingService } from '../../services/bookingService';
+import { SupabaseSyncModal } from '../SupabaseSyncModal';
 
 export interface OwnerHeaderProps {
   onToggleSidebar?: () => void;
@@ -30,6 +34,12 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
   );
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -37,6 +47,44 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
     const updated = ownerService.markAllNotificationsRead();
     setNotifications(updated);
   };
+
+  const handleSearchSubmit = (e?: React.SyntheticEvent) => {
+    if (e && 'preventDefault' in e) {
+      e.preventDefault();
+    }
+    if (searchQuery.trim()) {
+      onNavigate(`/owner/bookings?search=${encodeURIComponent(searchQuery.trim())}`);
+      setIsSearchFocused(false);
+    }
+  };
+
+  // Close search preview on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(event.target as Node)
+      ) {
+        setIsSearchFocused(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const matchingBookings =
+    searchQuery.trim().length > 1
+      ? bookingService
+          .getBookings()
+          .filter(
+            (b) =>
+              b.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              b.userName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              b.courtName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+              b.sport?.toLowerCase().includes(searchQuery.toLowerCase())
+          )
+          .slice(0, 5)
+      : [];
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-white border-b border-slate-200 px-4 sm:px-6 flex items-center justify-between gap-4">
@@ -67,16 +115,99 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
         </div>
       </div>
 
-      {/* Center Search Bar */}
-      <div className="flex-1 max-w-md hidden lg:block">
-        <div className="relative">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+      {/* Center Search Bar with Proper Search Button */}
+      <div className="flex-1 max-w-lg hidden lg:block relative" ref={searchContainerRef}>
+        <div className="relative flex items-center w-full">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
             type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleSearchSubmit(e);
+              }
+            }}
+            onFocus={() => setIsSearchFocused(true)}
             placeholder="Search courts, booking IDs, player names..."
-            className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 py-2 text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-emerald-500 focus:bg-white transition-colors"
+            className="w-full h-9 bg-slate-50 hover:bg-white border border-slate-300 focus:border-emerald-500 focus:bg-white rounded-xl pl-9 pr-[70px] text-xs text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-all shadow-2xs"
           />
+
+          <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="p-1 text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 rounded-md transition-colors"
+                title="Clear search"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={handleSearchSubmit}
+              id="owner-header-search-btn"
+              className="w-7 h-7 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white shadow-xs transition-all cursor-pointer flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-emerald-500/30 shrink-0"
+              title="Search"
+              aria-label="Search"
+            >
+              <Search className="w-3.5 h-3.5 text-white" />
+            </button>
+          </div>
         </div>
+
+        {/* Quick Search Preview Dropdown */}
+        {isSearchFocused && searchQuery.trim().length > 1 && (
+          <div className="absolute left-0 right-0 mt-2 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div className="px-3 py-1.5 flex items-center justify-between border-b border-slate-100 mb-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Matching Bookings ({matchingBookings.length})
+              </span>
+              <span className="text-[10px] text-slate-400">
+                Press Enter to view all
+              </span>
+            </div>
+
+            {matchingBookings.length > 0 ? (
+              <div className="space-y-1 max-h-60 overflow-y-auto">
+                {matchingBookings.map((b) => (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => {
+                      setIsSearchFocused(false);
+                      onNavigate(`/owner/bookings?search=${encodeURIComponent(b.id)}`);
+                    }}
+                    className="w-full text-left p-2 rounded-xl hover:bg-emerald-50/60 flex items-center justify-between group transition-colors"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-slate-800 group-hover:text-emerald-700">
+                          {b.userName || 'Player'}
+                        </span>
+                        <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
+                          {b.id}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        {b.courtName} • {b.sport} • {b.date} ({b.startTime})
+                      </p>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize bg-slate-100 text-slate-700 group-hover:bg-emerald-100 group-hover:text-emerald-800">
+                      {b.status}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="p-3 text-center text-xs text-slate-400">
+                No matching bookings or courts found for "{searchQuery}".
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right controls: Demo Switcher + Notifications + User Avatar */}
@@ -123,6 +254,17 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
             </div>
           )}
         </div>
+
+        {/* Supabase Integration Badge */}
+        <button
+          onClick={() => setIsSupabaseModalOpen(true)}
+          className="hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border border-emerald-200/80 bg-emerald-50/70 hover:bg-emerald-100/70 text-emerald-800 text-xs font-semibold transition-all group shadow-2xs"
+          title="Supabase Backend: Connected (Click for details & SQL)"
+        >
+          <Database className="w-3.5 h-3.5 text-emerald-600 group-hover:scale-110 transition-transform" />
+          <span className="hidden md:inline">Supabase</span>
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+        </button>
 
         {/* Notifications Dropdown */}
         <div className="relative">
@@ -212,6 +354,11 @@ export const OwnerHeader: React.FC<OwnerHeaderProps> = ({
           </div>
         </div>
       </div>
+
+      <SupabaseSyncModal
+        isOpen={isSupabaseModalOpen}
+        onClose={() => setIsSupabaseModalOpen(false)}
+      />
     </header>
   );
 };

@@ -13,6 +13,7 @@ export interface AuthContextType {
     email: string;
     password?: string;
     role?: UserRole;
+    avatar?: string;
   }) => Promise<{ email: string; demoOtp: string }>;
   register: (data: any) => Promise<{ email: string; demoOtp: string }>;
   verifyOtp: (email: string, otp: string) => Promise<User>;

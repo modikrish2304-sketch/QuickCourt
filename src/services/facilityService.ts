@@ -1,7 +1,7 @@
 import { Facility, SportType } from '../types';
 import { SEED_FACILITIES } from '../data/seedData';
 
-const STORAGE_FACILITIES_KEY = 'quickcourt_facilities';
+const STORAGE_FACILITIES_KEY = 'quickcourt_facilities_v2';
 
 function initializeFacilities(): Facility[] {
   const existing = localStorage.getItem(STORAGE_FACILITIES_KEY);
@@ -90,8 +90,8 @@ export const facilityService = {
               'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=900&auto=format&fit=crop&q=80',
               'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=900&auto=format&fit=crop&q=80',
             ],
-      verifiedBadge: true,
-      status: 'approved',
+      verifiedBadge: false,
+      status: 'pending',
       courtCount: data.courtCount || 4,
       rules: data.rules || [
         'Non-marking shoes required on all synthetic surfaces.',

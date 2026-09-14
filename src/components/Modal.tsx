@@ -55,10 +55,10 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-2xl border border-slate-200 shadow-2xl p-6 overflow-hidden z-10 animate-in zoom-in-95 duration-200`}
+        className={`relative w-full ${maxWidthClasses[maxWidth]} max-h-[90vh] flex flex-col bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 sm:p-6 overflow-hidden z-10 animate-in zoom-in-95 duration-200`}
       >
         {(title || showCloseButton) && (
-          <div className="flex items-start justify-between gap-4 mb-4">
+          <div className="flex items-start justify-between gap-4 mb-3 shrink-0">
             <div>
               {title && (
                 <h3 className="text-lg font-bold text-slate-900 font-display">
@@ -76,7 +76,7 @@ export const Modal: React.FC<ModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors -mr-1 -mt-1"
+                className="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors -mr-1 -mt-1 cursor-pointer"
                 aria-label="Close modal"
               >
                 <X className="w-5 h-5" />
@@ -85,7 +85,7 @@ export const Modal: React.FC<ModalProps> = ({
           </div>
         )}
 
-        <div>{children}</div>
+        <div className="overflow-y-auto pr-1 -mr-1">{children}</div>
       </div>
     </div>
   );

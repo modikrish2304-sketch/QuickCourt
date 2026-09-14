@@ -59,7 +59,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({
   const refreshData = () => {
     const fac = facilityService.getOwnerFacility(user?.id || 'usr_owner_1');
     setFacility(fac);
-    setCourts(courtService.getCourts(fac.id));
+    setCourts(courtService.getCourts(String(fac.id)));
     setBookings(bookingService.getBookings());
   };
 
@@ -68,7 +68,7 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({
   }, [user?.id]);
 
   // Analytics stats
-  const stats = analyticsService.getStats(facility.id);
+  const stats = analyticsService.getStats(String(facility.id));
 
   // Handle Add Court
   const handleAddCourtSubmit = async (courtData: any) => {
@@ -166,7 +166,8 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({
           <KPICard
             label="Total Bookings"
             value={stats.totalBookings}
-            growth={stats.totalBookingsGrowth}
+            growth="+12.5%"
+            growthLabel="vs last mo"
             isPositive={true}
             subtext="Confirmed slots"
             icon={CalendarCheck}
@@ -177,10 +178,10 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({
 
           <KPICard
             label="Active Courts"
-            value={stats.activeCourts}
-            subtext={stats.courtsRatioText}
-            growth="Operational"
-            isPositive={true}
+            value={`${stats.activeCourts} / ${stats.totalCourts}`}
+            badge="Operational"
+            badgeVariant="success"
+            subtext="All courts ready"
             icon={Layers}
             iconColor="text-teal-600"
             iconBg="bg-teal-50"
@@ -190,9 +191,10 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({
           <KPICard
             label="Estimated Earnings"
             value={`₹${stats.totalEarnings.toLocaleString()}`}
-            growth={stats.earningsGrowth}
+            growth="+8.4%"
+            growthLabel="this month"
             isPositive={true}
-            subtext="Weekly payout"
+            subtext="Payout ready"
             icon={Wallet}
             iconColor="text-emerald-700"
             iconBg="bg-emerald-50"
@@ -202,9 +204,9 @@ export const OwnerDashboard: React.FC<OwnerDashboardProps> = ({
           <KPICard
             label="Today's Bookings"
             value={stats.todayBookingsCount}
+            badge="Live Schedule"
+            badgeVariant="info"
             subtext={`${stats.todayUpcomingCount} upcoming slots`}
-            growth="Live schedule"
-            isPositive={true}
             icon={Clock}
             iconColor="text-blue-600"
             iconBg="bg-blue-50"

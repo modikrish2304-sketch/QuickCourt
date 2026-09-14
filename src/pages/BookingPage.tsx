@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { venueService } from '../services/venueService';
 import { bookingService } from '../services/bookingService';
-import { Facility, Court, SportType } from '../types';
+import { supabaseService } from '../services/supabaseService';
+import { Facility, Court, SportType, TimeSlot } from '../types';
 import { CourtSelector } from '../components/CourtSelector';
-import { TimeSlotSelector, TimeSlot } from '../components/TimeSlotSelector';
+import { TimeSlotSelector } from '../components/TimeSlotSelector';
 import { Button } from '../components/Button';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import {
@@ -40,8 +41,39 @@ export const BookingPage: React.FC<BookingPageProps> = ({
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
+  const [duration, setDuration] = useState<number>(1);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [refreshTick, setRefreshTick] = useState<number>(0);
+
+  // Real-time synchronization: Auto-refresh every 30s & listen to window / storage events
+  useEffect(() => {
+    const handleSync = () => {
+      setLastUpdated(new Date());
+      setRefreshTick((t) => t + 1);
+    };
+
+    // 30 seconds interval for automatic background live polling
+    const interval = setInterval(handleSync, 30000);
+
+    window.addEventListener('quickcourt_slots_updated', handleSync);
+    window.addEventListener('storage', handleSync);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('quickcourt_slots_updated', handleSync);
+      window.removeEventListener('storage', handleSync);
+    };
+  }, []);
+
+  const handleManualRefresh = () => {
+    setLastUpdated(new Date());
+    setRefreshTick((t) => t + 1);
+    if (onShowToast) {
+      onShowToast('info', 'Availability Refreshed', 'Live slot availability updated.');
+    }
+  };
 
   useEffect(() => {
     const fetchVenueAndCourts = async () => {
@@ -73,9 +105,33 @@ export const BookingPage: React.FC<BookingPageProps> = ({
     setSelectedSlot(null);
   };
 
+  const handleDurationChange = (d: number) => {
+    setDuration(d);
+    setSelectedSlot(null);
+  };
+
   const slots = React.useMemo(() => {
-    return venueService.getTimeSlotsForCourt(selectedCourt?.id || 'crt_1_1', selectedDate);
-  }, [selectedCourt, selectedDate]);
+    // Computed with refreshTick to force recalculation on live updates
+    const currentSlots = venueService.getTimeSlotsForCourt(selectedCourt?.id || 'crt_1_1', selectedDate);
+    return currentSlots;
+  }, [selectedCourt, selectedDate, refreshTick]);
+
+  // If currently selected slot became unavailable in real-time, auto-deselect it
+  useEffect(() => {
+    if (selectedSlot) {
+      const match = slots.find((s) => s.id === selectedSlot.id);
+      if (match && !match.available) {
+        setSelectedSlot(null);
+        if (onShowToast) {
+          onShowToast(
+            'warning',
+            'Slot Status Changed',
+            `The ${selectedSlot.startTime} slot is no longer available (now ${match.status || 'booked'}). Please pick another time.`
+          );
+        }
+      }
+    }
+  }, [slots, selectedSlot, onShowToast]);
 
   if (loading) {
     return (
@@ -98,7 +154,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
 
   // Pricing calculations
   const courtPrice = selectedCourt?.pricePerHour || venue.startingPrice;
-  const pricing = bookingService.calculatePricing(courtPrice, 1);
+  const pricing = bookingService.calculatePricing(courtPrice, duration);
 
   const canProceed = Boolean(selectedCourt && selectedDate && selectedSlot);
 
@@ -112,10 +168,74 @@ export const BookingPage: React.FC<BookingPageProps> = ({
     }
 
     if (!canProceed || !selectedCourt || !selectedSlot) {
+      const msg = 'Please select a court, booking duration, and an available start slot.';
       if (onShowToast) {
-        onShowToast('error', 'Incomplete Selection', 'Please select a court and an available time slot.');
+        onShowToast('error', 'Incomplete Selection', msg);
       }
+      supabaseService.recordFailedBooking({
+        userId: user?.id,
+        userName: user?.fullName || user?.name,
+        userEmail: user?.email,
+        venueId: venue.id,
+        venueName: venue.name,
+        sport: selectedSport as any,
+        date: selectedDate,
+        errorMessage: msg,
+        errorType: 'validation',
+      }).catch((e) => console.warn(e));
       return;
+    }
+
+    // Strict validation: selected date cannot be in the past
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (selectedDate < todayStr) {
+      const msg = 'The selected booking date cannot be in the past.';
+      if (onShowToast) {
+        onShowToast('error', 'Invalid Date', msg);
+      }
+      supabaseService.recordFailedBooking({
+        userId: user.id,
+        userName: user.fullName || user.name,
+        userEmail: user.email,
+        venueId: venue.id,
+        venueName: venue.name,
+        courtId: selectedCourt.id,
+        courtName: selectedCourt.name,
+        sport: (selectedSport as SportType) || (selectedCourt.sport as SportType),
+        date: selectedDate,
+        startTime: selectedSlot?.startTime,
+        errorMessage: msg,
+        errorType: 'validation',
+      }).catch((e) => console.warn(e));
+      return;
+    }
+
+    // Strict validation: if today, start time must be in the future
+    if (selectedDate === todayStr) {
+      const now = new Date();
+      const rawHour = parseInt(selectedSlot.id.split(':')[0], 10);
+      const rawMin = parseInt(selectedSlot.id.split(':')[1] || '0', 10);
+      if (rawHour < now.getHours() || (rawHour === now.getHours() && rawMin <= now.getMinutes())) {
+        const msg = 'Selected start time must be in the future.';
+        if (onShowToast) {
+          onShowToast('error', 'Invalid Time', msg);
+        }
+        supabaseService.recordFailedBooking({
+          userId: user.id,
+          userName: user.fullName || user.name,
+          userEmail: user.email,
+          venueId: venue.id,
+          venueName: venue.name,
+          courtId: selectedCourt.id,
+          courtName: selectedCourt.name,
+          sport: (selectedSport as SportType) || (selectedCourt.sport as SportType),
+          date: selectedDate,
+          startTime: selectedSlot.startTime,
+          errorMessage: msg,
+          errorType: 'validation',
+        }).catch((e) => console.warn(e));
+        return;
+      }
     }
 
     try {
@@ -136,7 +256,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
         date: selectedDate,
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
-        duration: '1 Hour',
+        duration: `${duration} Hour${duration > 1 ? 's' : ''}`,
         courtPrice: pricing.courtPrice,
         platformFee: pricing.platformFee,
         totalAmount: pricing.total,
@@ -148,17 +268,35 @@ export const BookingPage: React.FC<BookingPageProps> = ({
 
       onNavigate(`/payment/${newBooking.id}`);
     } catch (err: any) {
+      const errorMsg = err.message || 'Failed to initiate booking.';
       if (onShowToast) {
-        onShowToast('error', 'Booking Error', err.message || 'Failed to initiate booking.');
+        onShowToast('error', 'Booking Error', errorMsg);
       }
+      supabaseService.recordFailedBooking({
+        userId: user.id,
+        userName: user.fullName || user.name,
+        userEmail: user.email,
+        venueId: venue.id,
+        venueName: venue.name,
+        courtId: selectedCourt?.id,
+        courtName: selectedCourt?.name,
+        sport: (selectedSport as SportType) || (selectedCourt?.sport as SportType),
+        date: selectedDate,
+        startTime: selectedSlot?.startTime,
+        endTime: selectedSlot?.endTime,
+        courtPrice: pricing.courtPrice,
+        totalAmount: pricing.total,
+        errorMessage: errorMsg,
+        errorType: 'system_error',
+      }).catch((e) => console.warn(e));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 py-6 sm:py-10 text-slate-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50/50 pt-24 sm:pt-28 pb-16 text-slate-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         {/* Top Back Nav */}
         <button
           onClick={() => onNavigate(`/venues/${venue.id}`)}
@@ -174,7 +312,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
             Book a Court
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Choose your preferred court, date and 1-hour slot at <span className="font-bold text-slate-700">{venue.name}</span>.
+            Choose your preferred court, date, duration (1 to 4 hours), and time slot at <span className="font-bold text-slate-700">{venue.name}</span>.
           </p>
         </div>
 
@@ -251,7 +389,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
             {/* Step 3: Date & Slot Selection */}
             <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
               <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                {venue.sports.length > 1 ? '3. Select Date & Slot' : '2. Select Date & Slot'}
+                {venue.sports.length > 1 ? '3. Select Date, Duration & Slot' : '2. Select Date, Duration & Slot'}
               </label>
 
               <TimeSlotSelector
@@ -263,6 +401,10 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                 selectedSlot={selectedSlot}
                 onSelectSlot={(s) => setSelectedSlot(s)}
                 slots={slots}
+                duration={duration}
+                onDurationChange={handleDurationChange}
+                onManualRefresh={handleManualRefresh}
+                lastUpdated={lastUpdated}
               />
             </div>
           </div>
@@ -315,30 +457,32 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Time Slot:</span>
-                  <span className="font-bold text-emerald-700">
-                    {selectedSlot ? `${selectedSlot.startTime} - ${selectedSlot.endTime}` : 'Select a slot'}
+                  <span className="text-slate-400">Duration:</span>
+                  <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                    {duration} Hour{duration > 1 ? 's' : ''}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Duration:</span>
-                  <span className="font-bold text-slate-800">1 Hour</span>
+                  <span className="text-slate-400">Time Slot:</span>
+                  <span className="font-bold text-emerald-700 text-right">
+                    {selectedSlot ? `${selectedSlot.startTime} - ${selectedSlot.endTime}` : 'Select a slot'}
+                  </span>
                 </div>
               </div>
 
               {/* Price Breakdown */}
               <div className="pt-3 border-t border-slate-100 space-y-2 text-xs">
                 <div className="flex items-center justify-between text-slate-600">
-                  <span>Court Rate (1 hr)</span>
-                  <span>₹{pricing.courtPrice}</span>
+                  <span>Court Rate ({duration} hr{duration > 1 ? 's' : ''} × ₹{courtPrice})</span>
+                  <span className="font-semibold text-slate-800">₹{pricing.courtPrice}</span>
                 </div>
                 <div className="flex items-center justify-between text-slate-600">
                   <span>Platform Service Fee</span>
-                  <span>₹{pricing.platformFee}</span>
+                  <span className="font-semibold text-slate-800">₹{pricing.platformFee}</span>
                 </div>
                 <div className="flex items-center justify-between text-base font-black text-slate-900 font-display pt-2 border-t border-slate-100">
                   <span>Total Amount</span>
-                  <span>₹{pricing.total}</span>
+                  <span className="text-emerald-700">₹{pricing.total}</span>
                 </div>
               </div>
 
@@ -352,7 +496,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                 className="w-full mt-2"
                 rightIcon={<CreditCard className="w-4 h-4" />}
               >
-                Proceed to Payment
+                Proceed to Payment (₹{pricing.total})
               </Button>
 
               <p className="text-[11px] text-slate-400 text-center flex items-center justify-center gap-1">

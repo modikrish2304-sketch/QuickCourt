@@ -1,6 +1,6 @@
 import React from 'react';
 import { Logo } from './Logo';
-import { ShieldCheck, Zap, Headphones, Heart } from 'lucide-react';
+import { ShieldCheck, Zap, Headphones, Heart, Lock } from 'lucide-react';
 
 export interface FooterProps {
   onNavigate: (route: string) => void;
@@ -143,13 +143,17 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         </div>
 
         {/* Bottom copyright line */}
-        <div className="mt-12 pt-6 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
-          <p>© {new Date().getFullYear()} QuickCourt Sports Technologies Pvt. Ltd. All rights reserved.</p>
-          <div className="flex items-center gap-6">
-            <span className="hover:text-slate-700 cursor-pointer">Privacy Policy</span>
-            <span className="hover:text-slate-700 cursor-pointer">Terms of Service</span>
-            <span className="hover:text-slate-700 cursor-pointer">Security</span>
+        <div className="mt-12 pt-8 border-t border-slate-200 flex flex-col items-center justify-center gap-6 text-center">
+          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-xs font-semibold uppercase tracking-wider text-slate-500">
+            <button onClick={() => onNavigate('/')} className="hover:text-emerald-700 transition-colors">Privacy Policy</button>
+            <button onClick={() => onNavigate('/')} className="hover:text-emerald-700 transition-colors">Terms of Service</button>
+            <button onClick={() => onNavigate('/')} className="hover:text-emerald-700 transition-colors">Court Rules</button>
+            <button onClick={() => onNavigate('/owner')} className="hover:text-emerald-700 transition-colors flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" />
+              <span>Admin Access</span>
+            </button>
           </div>
+          <p className="text-xs text-slate-400">© {new Date().getFullYear()} QuickCourt Sports Technologies Pvt. Ltd. All rights reserved.</p>
         </div>
       </div>
     </footer>

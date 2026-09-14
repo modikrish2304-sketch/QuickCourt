@@ -41,7 +41,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
     { label: 'Home', route: '/' },
     { label: 'Find Venues', route: '/venues' },
     ...(isAuthenticated ? [{ label: 'My Bookings', route: '/my-bookings' }] : []),
-    { label: 'Owner Portal', route: '/owner/dashboard', isOwner: true },
   ];
 
   const handleLinkClick = (route: string) => {
@@ -74,20 +73,18 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
         ? 'bg-white/10 backdrop-blur-[20px] border-b border-white/20 shadow-[0_4px_30px_rgba(0,0,0,0.05)]' 
         : 'bg-white/85 backdrop-blur-xl border-b border-slate-200 shadow-sm'
     }`}>
-      <div className="max-w-[1440px] mx-auto px-6 md:px-10 h-[80px] flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-[68px] flex items-center justify-between gap-4">
         {/* Brand Logo */}
         <div
           onClick={() => handleLinkClick('/')}
-          className="cursor-pointer flex items-center shrink-0 w-[220px]"
+          className="cursor-pointer flex items-center shrink-0"
         >
           <Logo showTagline={false} size="md" variant={isTransparent ? 'dark' : 'light'} />
         </div>
 
         {/* Desktop Navigation - Centered */}
-        <nav className="hidden md:flex items-center justify-center gap-1 flex-1">
+        <nav className="hidden md:flex items-center justify-center gap-1.5 flex-1 max-w-xl mx-auto">
           {navLinks.map((link) => {
-            if (link.isOwner) return null;
-
             const isActive =
               link.route === '/'
                 ? currentRoute === '/'
@@ -97,12 +94,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
               <button
                 key={link.route}
                 onClick={() => handleLinkClick(link.route)}
-                className={`px-5 py-2 rounded-full text-[15px] font-semibold transition-all duration-200 ${
+                className={`px-4 py-1.5 rounded-full text-[14px] font-semibold transition-all duration-200 ${
                   isActive
-                    ? 'text-white bg-[#16A34A] shadow-sm'
+                    ? 'text-white bg-[#16A34A] shadow-xs'
                     : isTransparent
-                      ? 'text-white/80 hover:text-white hover:bg-white/10'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                      ? 'text-white/85 hover:text-white hover:bg-white/10'
+                      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/70'
                 }`}
               >
                 {link.label}
@@ -112,30 +109,12 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
         </nav>
 
         {/* Right side: Auth Controls / User Profile */}
-        <div className="hidden md:flex items-center gap-5 shrink-0 w-[300px] justify-end">
-          {navLinks.find(l => l.isOwner) && (
-            <button
-              onClick={() => handleLinkClick('/owner/dashboard')}
-              className={`px-4 py-1.5 rounded-full text-[12px] font-semibold flex items-center gap-2.5 transition-all duration-200 hover:-translate-y-[1px] ${
-                isTransparent
-                  ? 'bg-[#064E3B]/60 border border-emerald-500/20 text-white backdrop-blur-md hover:bg-[#064E3B]/80 hover:shadow-md'
-                  : 'bg-slate-900 border border-transparent text-white hover:bg-slate-800 hover:shadow-md'
-              }`}
-            >
-              <Building2 className={`w-4 h-4 ${isTransparent ? 'text-emerald-400' : 'text-emerald-400'}`} />
-              <div className="flex flex-col text-left leading-tight">
-                <span>Owner</span>
-                <span>Portal</span>
-              </div>
-              <span className={`w-2 h-2 rounded-full ${isTransparent ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-emerald-400'}`} />
-            </button>
-          )}
-
+        <div className="hidden md:flex items-center gap-3 shrink-0 justify-end">
           {isAuthenticated && user ? (
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                className={`flex items-center gap-3 p-1 pr-2 rounded-full transition-colors focus:outline-none ${
+                className={`flex items-center gap-2.5 p-1 pr-2 rounded-full transition-colors focus:outline-none ${
                   isTransparent
                     ? 'hover:bg-white/10 text-white'
                     : 'hover:bg-slate-100 text-slate-900'
@@ -145,22 +124,22 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
                   <img
                     src={user.avatar}
                     alt={user.fullName || user.name}
-                    className="w-[38px] h-[38px] rounded-full object-cover ring-2 ring-emerald-500/20"
+                    className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-500/20"
                   />
                 ) : (
-                  <div className="w-[38px] h-[38px] rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-sm">
+                  <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center text-xs">
                     {(user.fullName || user.name || 'U').charAt(0).toUpperCase()}
                   </div>
                 )}
                 <div className="text-left hidden lg:flex flex-col items-start justify-center">
-                  <span className={`text-[14px] font-semibold block leading-tight ${isTransparent ? 'text-white' : 'text-slate-900'}`}>
+                  <span className={`text-[13px] font-semibold block leading-tight ${isTransparent ? 'text-white' : 'text-slate-900'}`}>
                     {user.fullName || user.name}
                   </span>
-                  <span className={`text-[11px] font-bold capitalize block ${isTransparent ? 'text-[#4ade80]' : 'text-[#16A34A]'}`}>
+                  <span className={`text-[10px] font-bold capitalize block ${isTransparent ? 'text-[#4ade80]' : 'text-[#16A34A]'}`}>
                     {user.role || 'Player'}
                   </span>
                 </div>
-                <ChevronDown className={`w-4 h-4 ml-1 transition-transform ${userDropdownOpen ? 'rotate-180' : ''} ${isTransparent ? 'text-white/70' : 'text-slate-400'}`} />
+                <ChevronDown className={`w-3.5 h-3.5 ml-0.5 transition-transform ${userDropdownOpen ? 'rotate-180' : ''} ${isTransparent ? 'text-white/70' : 'text-slate-400'}`} />
               </button>
 
               {/* Dropdown Menu */}
@@ -246,10 +225,14 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
         <div className="flex items-center md:hidden">
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+            className={`p-2 rounded-xl transition-colors ${
+              isTransparent
+                ? 'text-white hover:bg-white/10'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+            }`}
             aria-label="Toggle navigation menu"
           >
-            {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
         </div>
       </div>

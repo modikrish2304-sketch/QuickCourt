@@ -1,85 +1,119 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, ArrowRight, ShieldCheck, Zap, Award, Users, Star, ChevronDown } from 'lucide-react';
+import { Search, MapPin, Aperture, ChevronDown, ArrowRight, Star } from 'lucide-react';
+import { GiShuttlecock, GiPingPongBat } from 'react-icons/gi';
+import { MdSportsCricket, MdSportsTennis, MdSportsBasketball } from 'react-icons/md';
+import { TbBallFootball } from 'react-icons/tb';
 import { motion } from 'motion/react';
 import { venueService } from '../services/venueService';
-import { Facility, SportType } from '../types';
-import { VenueCard } from '../components/VenueCard';
+import { VENUES_DATASET } from '../data/venues';
 import { SportCard } from '../components/SportCard';
+import { VenueCard } from '../components/VenueCard';
 import { Button } from '../components/Button';
-import { SkeletonCard } from '../components/SkeletonCard';
 import heroBackground from '../assets/images/sports_venue_background_1789209502947.jpg';
+import pickleballImage from '../assets/images/pickleball_court_1789407490662.jpg';
 
 export interface LandingPageProps {
   onNavigate: (route: string) => void;
 }
 
+const CITY_IMAGES: Record<string, string> = {
+  Ahmedabad: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?w=600&auto=format&fit=crop&q=80',
+  Mumbai: 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?w=600&auto=format&fit=crop&q=80',
+  Pune: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=600&auto=format&fit=crop&q=80',
+  Bengaluru: 'https://images.unsplash.com/photo-1596176530529-78163a4f7af2?w=600&auto=format&fit=crop&q=80',
+  Delhi: 'https://images.unsplash.com/photo-1587474260584-136574528ed5?w=600&auto=format&fit=crop&q=80',
+  Hyderabad: 'https://images.unsplash.com/photo-1605649487212-47bdab064df7?w=600&auto=format&fit=crop&q=80',
+  Chennai: 'https://images.unsplash.com/photo-1582510003544-4d00b7f74220?w=600&auto=format&fit=crop&q=80',
+  Kolkata: 'https://images.unsplash.com/photo-1558431382-27e303142255?w=600&auto=format&fit=crop&q=80',
+};
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
-  const [selectedSport, setSelectedSport] = useState<string>('All');
-  const [selectedCity, setSelectedCity] = useState<string>('All Cities');
+  const [selectedSport, setSelectedSport] = useState<string>('all');
+  const [selectedCity, setSelectedCity] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [popularVenues, setPopularVenues] = useState<Facility[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const popularSports = venueService.getPopularSports();
-
-  useEffect(() => {
-    const fetchVenues = async () => {
-      try {
-        setLoading(true);
-        const res = await venueService.getPopularVenues(6);
-        setPopularVenues(res);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchVenues();
-  }, []);
+  
+  const allSports = venueService.getAllSports();
+  const allCities = venueService.getAllCities();
 
   const handleHeroSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    if (selectedSport && selectedSport !== 'All') params.set('sport', selectedSport);
-    if (selectedCity && selectedCity !== 'All Cities') params.set('city', selectedCity);
-    if (searchQuery.trim()) params.set('q', searchQuery.trim());
+    if (searchQuery) params.append('q', searchQuery);
+    if (selectedSport !== 'all') params.append('sport', selectedSport);
+    if (selectedCity !== 'all') params.append('city', selectedCity);
+    
     onNavigate(`/venues?${params.toString()}`);
   };
 
-  const handleSportClick = (sportName: string) => {
-    onNavigate(`/venues?sport=${encodeURIComponent(sportName)}`);
-  };
+  const sports = [
+    { 
+      name: 'Badminton', 
+      venueCount: 40,
+      icon: <span className="w-5 h-5 inline-flex items-center justify-center"><GiShuttlecock size={20} /></span>, 
+      image: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=80' 
+    },
+    { 
+      name: 'Football', 
+      venueCount: 40,
+      icon: <span className="w-5 h-5 inline-flex items-center justify-center"><TbBallFootball size={20} /></span>, 
+      image: 'https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=800&auto=format&fit=crop&q=80' 
+    },
+    { 
+      name: 'Cricket', 
+      venueCount: 40,
+      icon: <span className="w-5 h-5 inline-flex items-center justify-center"><MdSportsCricket size={20} /></span>, 
+      image: 'https://images.unsplash.com/photo-1531415074968-036ba1b575da?w=800&auto=format&fit=crop&q=80' 
+    },
+    { 
+      name: 'Tennis', 
+      venueCount: 40,
+      icon: <span className="w-5 h-5 inline-flex items-center justify-center"><MdSportsTennis size={20} /></span>, 
+      image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?w=800&auto=format&fit=crop&q=80' 
+    },
+    { 
+      name: 'Basketball', 
+      venueCount: 40,
+      icon: <span className="w-5 h-5 inline-flex items-center justify-center"><MdSportsBasketball size={20} /></span>, 
+      image: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=800&auto=format&fit=crop&q=80' 
+    },
+    { 
+      name: 'Pickleball', 
+      venueCount: 40,
+      icon: <span className="w-5 h-5 inline-flex items-center justify-center"><GiPingPongBat size={20} /></span>, 
+      image: pickleballImage 
+    },
+  ];
 
-  const cities = ['All Cities', 'Bengaluru', 'Ahmedabad', 'Mumbai', 'Delhi', 'Pune', 'Hyderabad'];
-  const sports = ['All', 'Badminton', 'Football', 'Cricket', 'Tennis', 'Basketball', 'Pickleball'];
+  // Pick 6 top rated venues
+  const topVenues = VENUES_DATASET.filter(v => v.topRated).slice(0, 6);
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
+    <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* HERO SECTION */}
       <section 
-        className="relative flex min-h-[100dvh] flex-col items-center justify-center overflow-hidden bg-[#041A1A] bg-cover bg-center bg-no-repeat pt-20 pb-16"
+        className="relative flex min-h-[500px] md:min-h-[600px] flex-col items-center justify-center overflow-hidden bg-[#041A1A] bg-cover bg-center bg-no-repeat pt-20 pb-16"
         style={{ backgroundImage: `url(${heroBackground})` }}
       >
-        {/* Subtle dark overlay across entire image to ensure readability */}
-        <div className="absolute inset-0 bg-[#041515]/20" />
-
+        <div className="absolute inset-0 bg-slate-900/40" />
+        
         <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-col items-center justify-center px-4 text-center sm:px-6 lg:px-8 mt-12">
-          {/* Main Heading */}
+          
           <motion.h1 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.15, ease: "easeOut" }}
-            className="mb-6 max-w-5xl text-[56px] font-black leading-[1.05] tracking-tight text-white sm:text-[64px] md:text-[76px]"
+            className="mb-4 max-w-5xl text-[48px] font-black leading-[1.05] tracking-tight text-white sm:text-[64px] md:text-[76px]"
           >
             <span className="block drop-shadow-[0_2px_12px_rgba(0,0,0,0.6)]">Find Your Arena</span>
           </motion.h1>
 
-          {/* Supporting Text */}
           <motion.p 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3, ease: "easeOut" }}
-            className="mb-14 max-w-2xl text-[17px] font-medium text-white/80 sm:text-[19px] drop-shadow-md"
+            className="mb-12 max-w-2xl text-[17px] font-semibold text-white/95 sm:text-[19px] drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"
           >
-            Play more. Worry less. Find and book the best sports venues near you.
+            Play more. Worry less. Find and book the best sports venues
           </motion.p>
 
           {/* Search Card */}
@@ -87,212 +121,177 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             initial={{ opacity: 0, y: 25 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.45, ease: "easeOut" }}
-            className="w-full max-w-[760px] rounded-[2rem] md:rounded-full bg-white p-1.5 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100"
+            className="w-full max-w-3xl rounded-[2rem] md:rounded-full bg-white p-2 sm:p-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100"
           >
-            <form onSubmit={handleHeroSearch} className="flex flex-col gap-1.5 md:flex-row md:items-center h-auto md:h-[56px]">
+            <form onSubmit={handleHeroSearch} className="flex flex-col gap-2 md:flex-row md:items-center h-auto md:h-[60px]">
               
-              {/* Venue Search */}
-              <div className="flex h-full min-h-[44px] flex-1 items-center gap-3 rounded-full pl-5 pr-3 text-left transition hover:bg-slate-50 cursor-text group">
-                <Search className="h-4 w-4 text-slate-400 group-focus-within:text-[#16A34A] transition-colors shrink-0" strokeWidth={2.5} />
-                <div className="flex-1">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search venues, courts..."
-                    className="w-full bg-transparent text-[14px] font-medium text-slate-900 outline-none placeholder:text-slate-400"
-                  />
-                </div>
+              {/* Search Query */}
+              <div className="flex h-[48px] md:h-full items-center gap-3 rounded-full px-5 hover:bg-slate-50 flex-[2] transition relative group">
+                <Search className="h-5 w-5 text-slate-400 group-hover:text-emerald-600 shrink-0" strokeWidth={2} />
+                <input
+                  type="text"
+                  placeholder="Search venues, courts, or localities..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-transparent text-[15px] text-slate-900 outline-none placeholder:text-slate-400"
+                />
               </div>
 
-              {/* Divider */}
-              <div className="hidden h-7 w-[1px] bg-slate-200 md:block shrink-0" />
-
+              <div className="hidden h-8 w-[1px] bg-slate-200 md:block shrink-0" />
+              
               {/* Sport */}
-              <div className="flex h-full min-h-[44px] items-center gap-2.5 rounded-full px-4 text-left hover:bg-slate-50 md:w-[150px] transition cursor-pointer relative group">
-                <svg className="h-4 w-4 text-slate-400 group-hover:text-[#16A34A] transition-colors shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <path d="M12 12l3-2.5"></path>
-                  <path d="M12 12v3.5"></path>
-                  <path d="M12 12l-3-2.5"></path>
-                  <path d="M15 9.5l3.5 1.5"></path>
-                  <path d="M9 9.5L5.5 11"></path>
-                  <path d="M12 15.5l2 3.5"></path>
-                  <path d="M12 15.5l-2 3.5"></path>
-                </svg>
-                <div className="flex-1 flex flex-col justify-center min-w-0 pt-0.5">
-                  <p className="text-[10px] font-medium text-slate-500 leading-[1.2]">
-                    Sport
-                  </p>
+              <div className="flex h-[48px] md:h-full items-center gap-2.5 rounded-full px-4 hover:bg-slate-50 flex-[1.2] transition-colors cursor-pointer relative group focus-within:bg-emerald-50/40">
+                <Aperture className="h-5 w-5 text-emerald-600 group-hover:text-emerald-700 shrink-0 transition-colors" strokeWidth={2.2} />
+                <div className="flex-1 flex flex-col justify-center min-w-0 text-left">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700/80">Sport</p>
                   <select
                     value={selectedSport}
                     onChange={(e) => setSelectedSport(e.target.value)}
-                    className="w-full cursor-pointer bg-transparent text-[13px] font-semibold text-slate-900 outline-none appearance-none pr-4 leading-[1.2]"
+                    className="w-full cursor-pointer bg-transparent text-[14px] font-bold text-slate-900 outline-none appearance-none pr-5"
                   >
-                    {sports.map(s => <option key={s} value={s}>{s}</option>)}
+                    <option value="all" className="font-semibold text-slate-800">All Sports</option>
+                    {allSports.map(s => (
+                      <option key={s.id} value={s.name} className="font-medium text-slate-800 py-1">
+                        {s.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-hover:text-slate-600 transition-colors pointer-events-none" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-slate-600 pointer-events-none transition-colors" />
               </div>
 
-              {/* Divider */}
-              <div className="hidden h-7 w-[1px] bg-slate-200 md:block shrink-0" />
+              <div className="hidden h-8 w-[1px] bg-slate-200 md:block shrink-0" />
 
-              {/* City */}
-              <div className="flex h-full min-h-[44px] items-center gap-2.5 rounded-full px-4 text-left hover:bg-slate-50 md:w-[150px] transition cursor-pointer relative group">
-                <MapPin className="h-4 w-4 text-slate-400 group-hover:text-[#16A34A] transition-colors shrink-0" strokeWidth={2.5} />
-                <div className="flex-1 flex flex-col justify-center min-w-0 pt-0.5">
-                  <p className="text-[10px] font-medium text-slate-500 leading-[1.2]">
-                    Location
-                  </p>
+              {/* Cities */}
+              <div className="flex h-[48px] md:h-full items-center gap-2.5 rounded-full px-4 hover:bg-slate-50 flex-[1.2] transition-colors cursor-pointer relative group focus-within:bg-emerald-50/40">
+                <MapPin className="h-5 w-5 text-emerald-600 group-hover:text-emerald-700 shrink-0 transition-colors" strokeWidth={2.2} />
+                <div className="flex-1 flex flex-col justify-center min-w-0 text-left">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700/80">City</p>
                   <select
                     value={selectedCity}
                     onChange={(e) => setSelectedCity(e.target.value)}
-                    className="w-full cursor-pointer bg-transparent text-[13px] font-semibold text-slate-900 outline-none appearance-none pr-4 leading-[1.2]"
+                    className="w-full cursor-pointer bg-transparent text-[14px] font-bold text-slate-900 outline-none appearance-none pr-5"
                   >
-                    {cities.map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value="all" className="font-semibold text-slate-800">All Cities</option>
+                    {allCities.map(c => (
+                      <option key={c.id} value={c.name} className="font-medium text-slate-800 py-1">
+                        {c.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-hover:text-slate-600 transition-colors pointer-events-none" />
+                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-slate-600 pointer-events-none transition-colors" />
               </div>
 
-              {/* Search Button */}
-              <button type="submit" className="flex h-full min-h-[44px] w-full md:w-auto md:min-w-[120px] items-center justify-center gap-1.5 rounded-[1.5rem] md:rounded-full bg-[#16A34A] px-5 text-[14px] font-bold text-white transition-all duration-200 hover:bg-[#15803d] shadow-[0_4px_12px_rgba(22,163,74,0.3)] md:ml-1">
+              <Button 
+                type="submit" 
+                variant="primary" 
+                rightIcon={<ArrowRight className="w-4 h-4" />}
+                className="h-[48px] md:h-full rounded-2xl md:rounded-full px-8 shrink-0 bg-[#16A34A] hover:bg-green-700 text-white font-bold w-full md:w-auto mt-2 md:mt-0 transition-all duration-200 shadow-sm hover:shadow"
+              >
                 Search
-                <ArrowRight className="h-4 w-4" />
-              </button>
+              </Button>
             </form>
           </motion.div>
         </div>
       </section>
 
-      {/* POPULAR SPORTS SECTION */}
-      <section className="py-16 sm:py-20 bg-slate-50/60 border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between mb-10 gap-4">
-            <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 block mb-1">
-                Explore By Sport
+      {/* EXPLORE SPORTS SECTION */}
+      <section className="py-24 bg-[#F8FAFC]">
+        <div className="mx-auto max-w-[1200px] px-4 sm:px-6 lg:px-8">
+          
+          {/* Section Header */}
+          <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
+            <div className="max-w-2xl text-left">
+              <span className="mb-3 inline-block rounded-full bg-[#14B8A6]/10 px-3 py-1 text-xs font-bold tracking-widest text-[#14B8A6] uppercase">
+                Discover Your Game
               </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display">
-                Choose Your Game
+              <h2 className="text-[32px] sm:text-[40px] font-black font-display tracking-tight text-[#0B1F3A] leading-tight">
+                Explore Sports
               </h2>
-              <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                From high-speed badminton to late-night 5v5 turf matches.
+              <p className="mt-4 text-[17px] text-[#64748B] leading-relaxed">
+                Find the perfect court for your favorite game across 240 premier venues.
               </p>
             </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onNavigate('/venues')}
-              rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
-            >
-              Browse All Sports
-            </Button>
+            <div className="hidden md:block shrink-0">
+              <Button 
+                variant="outline" 
+                className="rounded-full border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold px-6 hover:text-[#0B1F3A]"
+                rightIcon={<ArrowRight className="w-4 h-4" />}
+                onClick={() => onNavigate('/venues')}
+              >
+                View all sports
+              </Button>
+            </div>
           </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            {popularSports.map((sport) => (
+          
+          {/* Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 lg:gap-6">
+            {sports.map((sport) => (
               <SportCard
                 key={sport.name}
                 name={sport.name}
                 venueCount={sport.venueCount}
                 icon={sport.icon}
                 image={sport.image}
-                description={sport.description}
-                onClick={() => handleSportClick(sport.name)}
+                onClick={() => onNavigate(`/venues?sport=${sport.name}`)}
               />
             ))}
           </div>
+          
+          {/* Mobile Only Button */}
+          <div className="mt-10 block md:hidden text-center">
+            <Button 
+              variant="outline" 
+              className="rounded-full border-slate-200 w-full justify-center text-slate-600 bg-white"
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+              onClick={() => onNavigate('/venues')}
+            >
+              View all sports
+            </Button>
+          </div>
+
         </div>
       </section>
 
-      {/* HOW IT WORKS SECTION */}
-      <section className="py-16 sm:py-20 bg-slate-50 border-y border-slate-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-14">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 block mb-1">
-              Seamless 3-Step Process
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-display">
-              How QuickCourt Works
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1.5">
-              Say goodbye to unreturned phone calls and double-booked turfs.
-            </p>
+      {/* POPULAR / TOP RATED VENUES SECTION */}
+      <section className="py-24 bg-white border-t border-slate-100">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mb-12 flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+            <div>
+              <span className="mb-2 inline-block rounded-full bg-amber-50 px-3 py-1 text-xs font-bold tracking-wider text-amber-700 uppercase">
+                Featured Arenas
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-black font-display text-slate-900">
+                Popular & Top-Rated Venues
+              </h2>
+              <p className="mt-2 text-sm sm:text-base text-slate-500">
+                Highest rated courts with certified facilities, floodlights, and immediate availability.
+              </p>
+            </div>
+            <Button 
+              variant="outline" 
+              className="rounded-full border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold px-6 shrink-0"
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+              onClick={() => onNavigate('/venues?sort=top-rated')}
+            >
+              See All 240 Venues
+            </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm relative">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center font-bold text-lg mb-5">
-                01
-              </div>
-              <h3 className="text-base font-bold text-slate-900 font-display">
-                Discover Verified Venues
-              </h3>
-              <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                Filter by your favorite sport, location, court type (indoor/outdoor), and starting price per hour with verified photos.
-              </p>
-            </div>
-
-            <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm relative">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center font-bold text-lg mb-5">
-                02
-              </div>
-              <h3 className="text-base font-bold text-slate-900 font-display">
-                Pick Your Court & Slot
-              </h3>
-              <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                Choose your specific court surface (wooden, synthetic, acrylic) and select an available 1-hour time slot in real-time.
-              </p>
-            </div>
-
-            <div className="bg-white p-7 rounded-2xl border border-slate-200 shadow-sm relative">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center font-bold text-lg mb-5">
-                03
-              </div>
-              <h3 className="text-base font-bold text-slate-900 font-display">
-                Pay & Play Instantly
-              </h3>
-              <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                Complete a fast simulated payment, get your digital pass with QR code, and walk onto the court ready for game time.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA SECTION */}
-      <section className="py-16 sm:py-20 bg-white">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="bg-gradient-to-br from-emerald-50 via-slate-50 to-white p-8 sm:p-12 rounded-3xl border border-emerald-200/80 shadow-sm">
-            <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 font-display">
-              Ready To Play Your Next Match?
-            </h2>
-            <p className="text-sm text-slate-600 max-w-xl mx-auto mt-3">
-              Join thousands of badminton champions, box cricket squads, and weekend warriors on QuickCourt today.
-            </p>
-            <div className="pt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={() => onNavigate('/venues')}
-                rightIcon={<ArrowRight className="w-4 h-4" />}
-              >
-                Find Venues Now
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                onClick={() => onNavigate('/signup')}
-              >
-                Create Free Player Account
-              </Button>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {topVenues.map((venue) => (
+              <VenueCard
+                key={venue.id}
+                venue={venue}
+                onViewDetails={(id) => onNavigate(`/venues/${id}`)}
+                onBookNow={(id) => onNavigate(`/book/${id}`)}
+              />
+            ))}
           </div>
         </div>
       </section>
     </div>
   );
 };
+

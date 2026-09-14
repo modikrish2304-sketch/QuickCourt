@@ -31,7 +31,7 @@ export const CourtManagement: React.FC<CourtManagementProps> = ({
   const facility = facilityService.getOwnerFacility(user?.id || 'usr_owner_1');
 
   const [courts, setCourts] = useState<Court[]>(() =>
-    courtService.getCourts(facility.id)
+    courtService.getCourts(String(facility.id))
   );
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSport, setSelectedSport] = useState<string>('All');
@@ -43,7 +43,7 @@ export const CourtManagement: React.FC<CourtManagementProps> = ({
   const [deletingCourt, setDeletingCourt] = useState<Court | null>(null);
 
   const refreshCourts = () => {
-    setCourts(courtService.getCourts(facility.id));
+    setCourts(courtService.getCourts(String(facility.id)));
   };
 
   const handleCreateOrUpdateCourt = async (courtData: any) => {

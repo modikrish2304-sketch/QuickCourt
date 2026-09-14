@@ -16,7 +16,7 @@ import {
 } from '../data/seedData';
 import { authService } from './authService';
 
-const STORAGE_FACILITIES_KEY = 'quickcourt_facilities';
+const STORAGE_FACILITIES_KEY = 'quickcourt_facilities_v2';
 const STORAGE_USERS_KEY = 'quickcourt_users';
 const STORAGE_BOOKINGS_KEY = 'quickcourt_bookings';
 const STORAGE_REPORTS_KEY = 'quickcourt_reports';

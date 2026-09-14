@@ -1,15 +1,6 @@
 export type UserRole = 'player' | 'facility_owner' | 'admin';
 
-export type SportType =
-  | 'Badminton'
-  | 'Football'
-  | 'Cricket'
-  | 'Tennis'
-  | 'Basketball'
-  | 'Table Tennis'
-  | 'Pickleball'
-  | 'Volleyball'
-  | 'Squash';
+export type SportType = string;
 
 export interface User {
   id: string;
@@ -31,14 +22,18 @@ export interface User {
 }
 
 export interface Facility {
-  id: string;
+  id: string | number;
+  idStr?: string;
   ownerId: string;
   ownerName: string;
   name: string;
+  venueName?: string;
+  image?: string;
+  imageUrl?: string;
   description: string;
   about?: string;
   sports: SportType[];
-  venueType: 'indoor' | 'outdoor' | 'both' | 'Indoor' | 'Outdoor' | 'Premium' | 'Community';
+  venueType: 'indoor' | 'outdoor' | 'both' | 'Indoor' | 'Outdoor' | 'Indoor & Outdoor' | 'Premium' | 'Community';
   address: string;
   location?: string;
   area: string;
@@ -47,8 +42,15 @@ export interface Facility {
   lat: number;
   lng: number;
   rating: number;
+  reviews?: number;
   reviewCount: number;
+  pricePerHour?: number;
   startingPrice: number;
+  topRated?: boolean;
+  availableSlots?: number;
+  availabilityText?: string;
+  verified?: boolean;
+  demoData?: boolean;
   amenities: string[];
   openingTime: string;
   closingTime: string;
@@ -62,7 +64,7 @@ export interface Facility {
   rules: string[];
   featured?: boolean;
   courts?: Court[];
-  reviews?: Review[];
+  reviewsList?: Review[];
   createdAt: string;
 }
 
@@ -70,7 +72,7 @@ export type Venue = Facility;
 
 export interface Court {
   id: string;
-  facilityId: string;
+  facilityId: string | number;
   name: string;
   sport: SportType;
   type?: string;
@@ -81,18 +83,35 @@ export interface Court {
   availableSlots?: string[];
 }
 
-export type SlotStatus = 'available' | 'booked' | 'reserved' | 'maintenance' | 'blocked';
+export type SlotStatus =
+  | 'available'
+  | 'booked'
+  | 'in_progress'
+  | 'completed'
+  | 'past'
+  | 'maintenance'
+  | 'blocked'
+  | 'cancelled'
+  | 'reserved';
 
 export interface TimeSlot {
   id: string;
-  courtId: string;
-  facilityId: string;
-  date: string;
+  courtId?: string;
+  facilityId?: string;
+  date?: string;
   startTime: string;
   endTime: string;
-  price: number;
+  rawStart?: string;
+  rawEnd?: string;
+  price?: number;
+  available?: boolean;
   status: SlotStatus;
+  liveStatusLabel?: string;
+  nextAvailableTime?: string;
   bookingId?: string;
+  bookedBy?: string;
+  blockReason?: string;
+  blockId?: string;
 }
 
 export interface Booking {
@@ -121,13 +140,19 @@ export interface Booking {
   discount: number;
   total?: number;
   totalAmount: number;
-  status: 'confirmed' | 'completed' | 'cancelled';
+  status: 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
+  liveStatus?: 'confirmed' | 'in_progress' | 'completed' | 'cancelled';
   paymentStatus: 'successful' | 'refunded' | 'pending' | 'failed';
+  paymentMethod?: string;
   paymentId: string;
   transactionId: string;
   qrCodeData: string;
   cancellationReason?: string;
   refundAmount?: number;
+  isRated?: boolean;
+  userRating?: number;
+  reviewId?: string;
+  ratedAt?: string;
   createdAt: string;
 }
 
@@ -164,11 +189,12 @@ export interface Match {
 }
 
 export interface ReviewCategoryRatings {
-  facilityQuality: number;
-  cleanliness: number;
-  staff: number;
-  courtQuality: number;
-  valueForMoney: number;
+  facilityQuality?: number;
+  cleanliness?: number;
+  staffService?: number;
+  courtQuality?: number;
+  staff?: number;
+  valueForMoney?: number;
 }
 
 export interface Review {
@@ -176,14 +202,21 @@ export interface Review {
   bookingId: string;
   facilityId: string;
   facilityName: string;
+  courtName?: string;
+  sport?: string;
   userId: string;
   userName: string;
   userAvatar: string;
-  rating: number;
-  categories: ReviewCategoryRatings;
-  comment: string;
+  rating: number; // 1 to 5 overall rating
+  courtQuality?: number; // 1 to 5
+  cleanliness?: number; // 1 to 5
+  staffService?: number; // 1 to 5
+  categories?: ReviewCategoryRatings;
+  comment?: string;
+  tags?: string[];
   verifiedBooking: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Notification {
@@ -229,4 +262,21 @@ export interface AdminAuditLog {
   target: string;
   description: string;
   timestamp: string;
+}
+
+export interface Sport {
+  id: string;
+  name: string;
+  category: 'Indoor Sports' | 'Outdoor Sports';
+  icon: string;
+  image: string;
+  description: string;
+}
+
+export interface City {
+  id: string;
+  name: string;
+  state: string;
+  stateCode: string;
+  famousLocations: string[];
 }

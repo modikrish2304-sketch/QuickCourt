@@ -31,7 +31,7 @@ export const TimeSlotManagement: React.FC<TimeSlotManagementProps> = ({
 }) => {
   const { user } = useAuth();
   const facility = facilityService.getOwnerFacility(user?.id || 'usr_owner_1');
-  const courts = courtService.getCourts(facility.id);
+  const courts = courtService.getCourts(String(facility.id));
 
   // Read court query param if present
   const queryParams = new URLSearchParams(window.location.search);

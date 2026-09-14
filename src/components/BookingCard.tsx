@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Clock, MapPin, QrCode, Ban, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, MapPin, QrCode, Ban, CheckCircle2, AlertCircle, Star, Sparkles, Edit3 } from 'lucide-react';
 import { Booking } from '../types';
 import { Button } from './Button';
 
@@ -7,12 +7,16 @@ export interface BookingCardProps {
   booking: Booking;
   onCancel: (booking: Booking) => void;
   onViewPass: (booking: Booking) => void;
+  onRebook?: (booking: Booking) => void;
+  onRate?: (booking: Booking) => void;
 }
 
 export const BookingCard: React.FC<BookingCardProps> = ({
   booking,
   onCancel,
   onViewPass,
+  onRebook,
+  onRate,
 }) => {
   const isFuture = () => {
     try {
@@ -26,9 +30,32 @@ export const BookingCard: React.FC<BookingCardProps> = ({
   };
 
   const canCancel = booking.status === 'confirmed' && isFuture();
+  const isCompleted = (booking.liveStatus || booking.status) === 'completed';
+  const venueName = booking.venueName || booking.facilityName;
 
   const getStatusBadge = () => {
-    switch (booking.status) {
+    const status = booking.liveStatus || booking.status;
+    switch (status) {
+      case 'in_progress':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-300 shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            In Progress
+          </span>
+        );
+      case 'ready_for_entry':
+        return (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+            Ready for Entry
+          </span>
+        );
+      case 'upcoming':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+            Upcoming
+          </span>
+        );
       case 'confirmed':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -38,14 +65,22 @@ export const BookingCard: React.FC<BookingCardProps> = ({
         );
       case 'completed':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
-            Completed
-          </span>
+          <div className="flex items-center gap-1.5">
+            {booking.isRated && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-300 shadow-2xs">
+                <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
+                Rated {booking.userRating ? `★ ${booking.userRating}` : '★ 5'}
+              </span>
+            )}
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200">
+              Completed
+            </span>
+          </div>
         );
       case 'cancelled':
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-red-50 text-red-700 border border-red-200">
-            <AlertCircle className="w-3 h-3 text-red-600" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+            <AlertCircle className="w-3 h-3 text-rose-600" />
             Cancelled
           </span>
         );
@@ -130,40 +165,122 @@ export const BookingCard: React.FC<BookingCardProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Post-Booking Rating Callout Banner (Completed Bookings) */}
+        {isCompleted && (
+          <div className="mt-3.5 p-3.5 rounded-xl bg-gradient-to-r from-emerald-50/90 to-teal-50/70 border border-emerald-200/80 flex items-center justify-between gap-3">
+            <div className="space-y-0.5 min-w-0">
+              <span className="text-xs font-black text-slate-900 block font-display">
+                How was your game?
+              </span>
+              <span className="text-[11px] text-slate-600 italic block truncate">
+                Rate your experience at <strong className="text-slate-800 not-italic">{venueName}</strong>.
+              </span>
+            </div>
+
+            {booking.isRated ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRate && onRate(booking);
+                }}
+                className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-800 text-xs font-bold border border-slate-200 shadow-2xs transition-all cursor-pointer"
+              >
+                <Edit3 className="w-3.5 h-3.5 text-slate-500" />
+                <span>Edit Review</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRate && onRate(booking);
+                }}
+                className="shrink-0 inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-sm shadow-emerald-600/20 transition-all cursor-pointer"
+              >
+                <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                <span>Rate Game</span>
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Footer: Price & Actions */}
       <div className="mt-5 pt-4 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
         <div>
-          <span className="text-[10px] uppercase font-bold text-slate-400 block">
-            Amount Paid
+          <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
+            {booking.status === 'cancelled' ? 'Refunded' : 'Amount Paid'}
           </span>
-          <span className="text-lg font-black text-slate-900 font-display">
+          <span className={`text-lg font-black font-display ${booking.status === 'cancelled' ? 'text-slate-400 line-through' : 'text-slate-900'}`}>
             ₹{booking.totalAmount || booking.total || booking.courtPrice}
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
           {canCancel && (
             <Button
+              type="button"
               variant="outline"
-              size="sm"
-              onClick={() => onCancel(booking)}
-              leftIcon={<Ban className="w-3.5 h-3.5 text-red-500" />}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50 hover:border-red-200"
+              size="md"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancel(booking);
+              }}
+              leftIcon={<Ban className="w-4 h-4 text-rose-500" />}
+              className="text-rose-600 hover:text-rose-700 hover:bg-rose-50 hover:border-rose-300 font-semibold px-3.5 py-2 min-h-[40px] text-xs transition-colors"
             >
-              Cancel
+              Cancel Booking
             </Button>
           )}
 
-          <Button
-            variant={booking.status === 'confirmed' ? 'primary' : 'outline'}
-            size="sm"
-            onClick={() => onViewPass(booking)}
-            leftIcon={<QrCode className="w-3.5 h-3.5" />}
-          >
-            Digital Pass
-          </Button>
+          {isCompleted && (
+            <Button
+              type="button"
+              variant={booking.isRated ? 'outline' : 'primary'}
+              size="md"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRate && onRate(booking);
+              }}
+              leftIcon={<Star className={`w-4 h-4 ${booking.isRated ? 'fill-amber-400 text-amber-400' : 'fill-amber-300 text-amber-300'}`} />}
+              className="font-bold px-3.5 py-2 min-h-[40px] text-xs"
+            >
+              {booking.isRated ? `Rated ★ ${booking.userRating || 5}` : 'Rate Your Experience'}
+            </Button>
+          )}
+
+          {booking.status === 'cancelled' && onRebook && (
+            <Button
+              type="button"
+              variant="outline"
+              size="md"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRebook(booking);
+              }}
+              className="text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border-emerald-300 font-semibold px-3.5 py-2 min-h-[40px] text-xs transition-colors"
+            >
+              Book Again
+            </Button>
+          )}
+
+          {booking.status !== 'cancelled' && (
+            <Button
+              type="button"
+              variant={booking.status === 'confirmed' ? 'primary' : 'outline'}
+              size="md"
+              onClick={(e) => {
+                e.stopPropagation();
+                onViewPass(booking);
+              }}
+              leftIcon={<QrCode className="w-4 h-4" />}
+              className="font-semibold px-4 py-2 min-h-[40px] text-xs shadow-xs"
+            >
+              Digital Pass
+            </Button>
+          )}
         </div>
       </div>
     </div>

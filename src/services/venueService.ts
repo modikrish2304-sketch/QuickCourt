@@ -1,15 +1,19 @@
 import { Facility, Court, Review, SportType } from '../types';
-import { SEED_FACILITIES, SEED_COURTS, SEED_REVIEWS } from '../data/seedData';
+import { SEED_FACILITIES, SEED_COURTS, SPORTS, CITIES } from '../data/seedData';
 import { timeslotService } from './timeslotService';
+import { reviewService } from './reviewService';
 
-const STORAGE_FACILITIES_KEY = 'quickcourt_facilities';
-const STORAGE_COURTS_KEY = 'quickcourt_courts';
+const STORAGE_FACILITIES_KEY = 'quickcourt_venues_240_v1';
+const STORAGE_COURTS_KEY = 'quickcourt_courts_240_v1';
 
 function initializeFacilities(): Facility[] {
   const existing = localStorage.getItem(STORAGE_FACILITIES_KEY);
   if (existing) {
     try {
-      return JSON.parse(existing);
+      const parsed = JSON.parse(existing);
+      if (Array.isArray(parsed) && parsed.length >= 240) {
+        return parsed;
+      }
     } catch {
       // Fallback
     }
@@ -22,7 +26,10 @@ function initializeCourts(): Court[] {
   const existing = localStorage.getItem(STORAGE_COURTS_KEY);
   if (existing) {
     try {
-      return JSON.parse(existing);
+      const parsed = JSON.parse(existing);
+      if (Array.isArray(parsed) && parsed.length >= 480) {
+        return parsed;
+      }
     } catch {
       // Fallback
     }
@@ -33,11 +40,14 @@ function initializeCourts(): Court[] {
 
 export interface VenueFilterParams {
   search?: string;
+  venueSearch?: string;
   sport?: SportType | string;
   priceRange?: 'all' | 'under-300' | '300-500' | '500-1000' | 'above-1000';
   venueType?: 'all' | 'Indoor' | 'Outdoor' | 'Premium' | 'Community' | 'both';
   minRating?: number;
   city?: string;
+  location?: string;
+  verifiedOnly?: boolean;
   page?: number;
   limit?: number;
 }
@@ -51,22 +61,108 @@ export interface PaginatedVenuesResult {
 }
 
 export const venueService = {
+  getAllSports() {
+    return SPORTS;
+  },
+
+  getAllCities() {
+    return CITIES;
+  },
+
+  getLocationsByCity(cityId: string) {
+    const city = CITIES.find(c => c.id === cityId || c.name === cityId);
+    return city ? city.famousLocations : [];
+  },
+
+  getVerifiedLocationsBySportAndCity(sport?: string, city?: string, venueSearch?: string): string[] {
+    const venues = initializeFacilities().filter(f => f.status === 'approved' && f.verifiedBadge);
+    const courts = initializeCourts();
+
+    const matched = venues.filter((v) => {
+      // Check venue search match
+      if (venueSearch && venueSearch.trim()) {
+        const vs = venueSearch.trim().toLowerCase();
+        if (!v.name.toLowerCase().includes(vs)) {
+          return false;
+        }
+      }
+
+      // Check city match
+      if (city && city !== 'all' && city !== 'All Cities') {
+        if (v.city.toLowerCase() !== city.toLowerCase()) {
+          return false;
+        }
+      }
+
+      // Check sport match
+      if (sport && sport !== 'all' && sport !== 'All Sports' && sport !== 'All Outdoor Courts') {
+        const sp = sport.toLowerCase();
+        const hasFacilitySport = v.sports.some((s) => {
+          const sLower = s.toLowerCase();
+          return (
+            sLower === sp ||
+            (sp.includes('pickleball') && sLower.includes('pickleball')) ||
+            (sp.includes('badminton') && sLower.includes('badminton'))
+          );
+        });
+        const hasCourtSport = courts
+          .filter((c) => c.facilityId === v.id)
+          .some((c) => {
+            const cLower = c.sport.toLowerCase();
+            return (
+              cLower === sp ||
+              (sp.includes('pickleball') && cLower.includes('pickleball')) ||
+              (sp.includes('badminton') && cLower.includes('badminton'))
+            );
+          });
+
+        if (!hasFacilitySport && !hasCourtSport) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+
+    const uniqueLocs = Array.from(
+      new Set(matched.map((v) => v.area || v.location).filter(Boolean))
+    );
+    return uniqueLocs.sort();
+  },
+
   async getVenues(params: VenueFilterParams = {}): Promise<PaginatedVenuesResult> {
     const all = initializeFacilities().filter(
-      (f) => f.status === 'approved' || f.status === undefined || (f as any).approved !== false
+      (f) => f.status === 'approved'
     );
     const courts = initializeCourts();
 
     let filtered = all.map((fac) => ({
       ...fac,
-      courts: courts.filter((c) => c.facilityId === fac.id),
-      reviews: SEED_REVIEWS.filter((r) => r.facilityId === fac.id),
+      courts: courts.filter((c) => String(c.facilityId) === String(fac.id)),
+      reviewsList: reviewService.getReviewsForFacility(fac.id),
     }));
 
+    // Venue Name Search filter
+    if (params.venueSearch && params.venueSearch.trim()) {
+      const vs = params.venueSearch.trim().toLowerCase();
+      filtered = filtered.filter((f) => f.name.toLowerCase().includes(vs));
+    }
+
     // City filter
-    if (params.city && params.city !== 'All Cities') {
+    if (params.city && params.city !== 'All Cities' && params.city !== 'all') {
       filtered = filtered.filter(
         (f) => f.city.toLowerCase() === params.city?.toLowerCase()
+      );
+    }
+
+    // Location / Area filter
+    if (params.location && params.location !== 'all' && params.location !== 'All Locations' && params.location !== 'All Verified Locations' && params.location !== 'none') {
+      const loc = params.location.toLowerCase();
+      filtered = filtered.filter(
+        (f) =>
+          (f.area && f.area.toLowerCase() === loc) ||
+          (f.location && f.location.toLowerCase() === loc) ||
+          (f.address && f.address.toLowerCase().includes(loc))
       );
     }
 
@@ -86,7 +182,14 @@ export const venueService = {
     if (params.sport && params.sport !== 'All' && params.sport !== 'all') {
       const sp = params.sport.toLowerCase();
       filtered = filtered.filter((f) =>
-        f.sports.some((s) => s.toLowerCase() === sp)
+        f.sports.some((s) => {
+          const sLower = s.toLowerCase();
+          return (
+            sLower === sp ||
+            (sp.includes('pickleball') && sLower.includes('pickleball')) ||
+            (sp.includes('badminton') && sLower.includes('badminton'))
+          );
+        })
       );
     }
 
@@ -143,29 +246,77 @@ export const venueService = {
     };
   },
 
-  async getVenueById(venueId: string): Promise<(Facility & { courts: Court[]; reviews: Review[] }) | null> {
+  async getVenueById(venueId: string | number): Promise<(Omit<Facility, 'reviews'> & { courts: Court[]; reviews: Review[]; reviewsCount?: number }) | null> {
     const venues = initializeFacilities();
     const courts = initializeCourts();
-    const found = venues.find((f) => f.id === venueId);
+    const found = venues.find((f) => String(f.id) === String(venueId) || f.idStr === String(venueId));
     if (!found) return null;
 
-    const facCourts = courts.filter((c) => c.facilityId === found.id);
-    const facReviews = SEED_REVIEWS.filter((r) => r.facilityId === found.id);
+    let facCourts = courts.filter((c) => String(c.facilityId) === String(found.id));
+    if (facCourts.length === 0) {
+      const sport = found.sports?.[0] || 'Badminton';
+      facCourts = [
+        {
+          id: `court_${found.id}_1`,
+          facilityId: String(found.id),
+          name: `Court 1 (${sport})`,
+          sport: sport,
+          type: found.venueType,
+          pricePerHour: found.pricePerHour || found.startingPrice,
+          openingTime: '06:00',
+          closingTime: '23:00',
+          status: 'active',
+          availableSlots: ['07:00 AM', '08:00 AM', '09:00 AM', '05:00 PM', '06:00 PM', '07:00 PM', '08:00 PM'],
+        },
+        {
+          id: `court_${found.id}_2`,
+          facilityId: String(found.id),
+          name: `Court 2 (${sport})`,
+          sport: sport,
+          type: found.venueType,
+          pricePerHour: found.pricePerHour || found.startingPrice,
+          openingTime: '06:00',
+          closingTime: '23:00',
+          status: 'active',
+          availableSlots: ['07:00 AM', '08:00 AM', '09:00 AM', '05:00 PM', '06:00 PM', '07:00 PM', '08:00 PM'],
+        },
+      ];
+    }
+
+    const facReviews = reviewService.getReviewsForFacility(found.id);
+    const stats = reviewService.getFacilityRatingStats(found.id);
 
     return {
       ...found,
+      rating: stats.totalReviews > 0 ? stats.averageRating : found.rating,
+      reviewCount: stats.totalReviews > 0 ? stats.totalReviews : found.reviewCount,
+      reviewsCount: stats.totalReviews > 0 ? stats.totalReviews : found.reviewCount,
       courts: facCourts,
       reviews: facReviews,
     };
   },
 
-  async getCourtsForVenue(venueId: string): Promise<Court[]> {
+  async getCourtsForVenue(venueId: string | number): Promise<Court[]> {
     const courts = initializeCourts();
-    return courts.filter((c) => c.facilityId === venueId);
+    const res = courts.filter((c) => String(c.facilityId) === String(venueId));
+    if (res.length > 0) return res;
+    return [
+      {
+        id: `court_${venueId}_1`,
+        facilityId: String(venueId),
+        name: 'Court 1',
+        sport: 'Badminton',
+        pricePerHour: 500,
+        openingTime: '06:00',
+        closingTime: '23:00',
+        status: 'active',
+        availableSlots: ['07:00 AM', '08:00 AM', '05:00 PM', '06:00 PM', '07:00 PM'],
+      }
+    ];
   },
 
   async getPopularVenues(limit = 6): Promise<Facility[]> {
-    const all = initializeFacilities().filter((f) => f.status === 'approved' || (f as any).approved !== false);
+    const all = initializeFacilities().filter((f) => f.status === 'approved');
     // Sort by rating desc
     return all.sort((a, b) => b.rating - a.rating).slice(0, limit);
   },
@@ -201,7 +352,7 @@ export const venueService = {
         slug: 'tennis',
         venueCount: 10,
         icon: '🎾',
-        image: 'https://images.unsplash.com/photo-1587280501635-6cb10ce690a2?q=80&w=600&auto=format&fit=crop',
+        image: 'https://images.unsplash.com/photo-1595435934249-5df7ed86e1c0?q=80&w=600&auto=format&fit=crop',
         description: 'ITF certified acrylic, clay & floodlit grass courts'
       },
       {
@@ -217,7 +368,7 @@ export const venueService = {
         slug: 'pickleball',
         venueCount: 11,
         icon: '🏓',
-        image: 'https://images.unsplash.com/photo-1554068865-24cecd4e34b8?q=80&w=600&auto=format&fit=crop',
+        image: 'https://upload.wikimedia.org/wikipedia/commons/7/71/A_pickleball_paddle_with_two_pickleballs.jpg',
         description: 'USA Pickleball regulation sized cushioned multi-color courts'
       }
     ];

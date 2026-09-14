@@ -57,7 +57,7 @@ export const LoginPage: React.FC<LoginPageProps> = ({
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-slate-50/50">
+    <div className="min-h-[85vh] flex items-center justify-center pt-24 sm:pt-28 pb-16 px-4 sm:px-6 lg:px-8 bg-slate-50/50">
       <div className="max-w-md w-full space-y-8 bg-white p-8 sm:p-10 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50">
         {/* Header */}
         <div className="text-center">
@@ -134,19 +134,38 @@ export const LoginPage: React.FC<LoginPageProps> = ({
             className="w-full mt-2"
             rightIcon={<ArrowRight className="w-4 h-4" />}
           >
-            Sign In
+            Login
           </Button>
         </form>
 
-        {/* Footer link to Signup */}
-        <div className="text-center pt-2 text-xs text-slate-500">
-          Don't have an account?{' '}
-          <button
-            onClick={() => onNavigate(`/signup?redirect=${encodeURIComponent(redirectUrl)}`)}
-            className="font-bold text-emerald-600 hover:text-emerald-700 transition-colors underline"
-          >
-            Create Free Account
-          </button>
+        {/* Footer links */}
+        <div className="text-center pt-2 space-y-2 text-xs text-slate-500">
+          <div>
+            Don't have an account?{' '}
+            <button
+              onClick={() => onNavigate(`/signup?redirect=${encodeURIComponent(redirectUrl)}`)}
+              className="font-bold text-emerald-600 hover:text-emerald-700 transition-colors underline"
+            >
+              Sign Up
+            </button>
+          </div>
+          <div>
+            <button
+              type="button"
+              onClick={() => {
+                if (onShowToast) {
+                  onShowToast(
+                    'info',
+                    'Password Reset',
+                    'A password reset link has been sent to your registered email.'
+                  );
+                }
+              }}
+              className="text-xs text-slate-500 hover:text-emerald-600 transition-colors underline"
+            >
+              Forgot Password?
+            </button>
+          </div>
         </div>
       </div>
     </div>

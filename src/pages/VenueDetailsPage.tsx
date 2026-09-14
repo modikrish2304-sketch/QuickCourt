@@ -29,13 +29,12 @@ export const VenueDetailsPage: React.FC<VenueDetailsPageProps> = ({
   onNavigate,
   onShowToast,
 }) => {
-  const [venue, setVenue] = useState<(Facility & { courts: Court[]; reviews: Review[] }) | null>(null);
+  const [venue, setVenue] = useState<(Omit<Facility, 'reviews'> & { courts: Court[]; reviews: Review[] }) | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadVenue = async () => {
       try {
-        setLoading(true);
         const data = await venueService.getVenueById(venueId);
         setVenue(data);
       } finally {
@@ -43,6 +42,13 @@ export const VenueDetailsPage: React.FC<VenueDetailsPageProps> = ({
       }
     };
     loadVenue();
+
+    window.addEventListener('quickcourt_reviews_updated', loadVenue);
+    window.addEventListener('storage', loadVenue);
+    return () => {
+      window.removeEventListener('quickcourt_reviews_updated', loadVenue);
+      window.removeEventListener('storage', loadVenue);
+    };
   }, [venueId]);
 
   if (loading) {
@@ -75,8 +81,8 @@ export const VenueDetailsPage: React.FC<VenueDetailsPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 py-6 sm:py-10 text-slate-900">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50/50 pt-24 sm:pt-28 pb-16 text-slate-900">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         {/* Back Navigation & Breadcrumb */}
         <div className="flex items-center justify-between mb-6">
           <button
@@ -190,10 +196,15 @@ export const VenueDetailsPage: React.FC<VenueDetailsPageProps> = ({
                       </p>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-black text-slate-900 font-display">
-                        ₹{court.pricePerHour}
-                      </span>
-                      <span className="text-[10px] text-slate-400 block">/hr</span>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800">
+                          Fair Price
+                        </span>
+                        <span className="text-sm font-black text-slate-900 font-display">
+                          ₹{court.pricePerHour}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 block font-medium">/ hour (all inclusive)</span>
                     </div>
                   </div>
                 ))}
@@ -264,7 +275,15 @@ export const VenueDetailsPage: React.FC<VenueDetailsPageProps> = ({
                             {rev.userName.charAt(0)}
                           </div>
                           <div>
-                            <h4 className="text-xs font-bold text-slate-900">{rev.userName}</h4>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h4 className="text-xs font-bold text-slate-900">{rev.userName}</h4>
+                              {rev.verifiedBooking && (
+                                <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                                  <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                  Verified Player
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[10px] text-slate-400">
                               {new Date(rev.createdAt).toLocaleDateString('en-US', {
                                 month: 'short',
@@ -276,9 +295,29 @@ export const VenueDetailsPage: React.FC<VenueDetailsPageProps> = ({
                         </div>
                         <Rating value={rev.rating} showNumber={false} size="sm" />
                       </div>
-                      <p className="text-xs text-slate-600 leading-relaxed pl-10">
-                        "{rev.comment}"
-                      </p>
+
+                      {rev.tags && rev.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pl-10.5">
+                          {rev.tags.map((t, idx) => (
+                            <span
+                              key={idx}
+                              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                                t === 'Needs improvement'
+                                  ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                  : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                              }`}
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {rev.comment && (
+                        <p className="text-xs text-slate-600 leading-relaxed pl-10.5">
+                          "{rev.comment}"
+                        </p>
+                      )}
                     </div>
                   ))
                 ) : (
@@ -301,6 +340,9 @@ export const VenueDetailsPage: React.FC<VenueDetailsPageProps> = ({
                       ₹{venue.startingPrice}
                     </span>
                     <span className="text-xs text-slate-500 font-medium">/ hour</span>
+                    <span className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                      Fair Price
+                    </span>
                   </div>
                 </div>
 
@@ -317,11 +359,15 @@ export const VenueDetailsPage: React.FC<VenueDetailsPageProps> = ({
                   <span className="font-bold text-slate-800">{venue.courts?.length || 0} Courts</span>
                 </div>
                 <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Duration options</span>
+                  <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">1 to 4 Hours</span>
+                </div>
+                <div className="flex items-center justify-between">
                   <span className="text-slate-400">Operating hours</span>
                   <span className="font-bold text-slate-800">{venue.openingTime} - {venue.closingTime}</span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-slate-400">Platform convenience fee</span>
+                  <span className="text-slate-400">Platform fee</span>
                   <span className="font-bold text-emerald-600">Flat ₹25</span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -338,7 +384,7 @@ export const VenueDetailsPage: React.FC<VenueDetailsPageProps> = ({
                 className="w-full"
                 rightIcon={<ChevronRight className="w-4 h-4" />}
               >
-                Select Court & Time Slot
+                Book This Venue
               </Button>
 
               <div className="pt-2 text-center">

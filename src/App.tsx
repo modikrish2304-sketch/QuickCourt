@@ -14,6 +14,8 @@ import { ProfilePage } from './pages/ProfilePage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import { OtpVerificationPage } from './pages/OtpVerificationPage';
+import { BookingPass } from './components/BookingPass';
+import { ArrowLeft } from 'lucide-react';
 
 import { OwnerDashboard } from './pages/owner/OwnerDashboard';
 import { FacilityManagement } from './pages/owner/FacilityManagement';
@@ -74,9 +76,9 @@ function AppContent() {
   );
 
   const renderPage = () => {
-    // 1. Venue Booking: /booking/:venueId or /venues/:venueId/book
+    // 1. Venue Booking: /booking/:venueId, /venues/:venueId/book, or /book/:venueId
     const bookingMatch =
-      pathname.match(/^\/booking\/([^/]+)$/) || pathname.match(/^\/venues\/([^/]+)\/book$/);
+      pathname.match(/^\/booking\/([^/]+)$/) || pathname.match(/^\/venues\/([^/]+)\/book$/) || pathname.match(/^\/book\/([^/]+)$/);
     if (bookingMatch) {
       const venueId = bookingMatch[1];
       return (
@@ -101,6 +103,46 @@ function AppContent() {
       );
     }
 
+    // 2b. Booking Pass First & Second Screen: /booking-pass, /booking-pass/:id, /pass
+    const passMatch = pathname.match(/^\/booking-pass(?:\/([^/]+))?$/) || pathname.match(/^\/pass(?:\/([^/]+))?$/);
+    if (passMatch) {
+      const passId = passMatch[1] || 'QC-20260914-4636';
+      return (
+        <div className="min-h-screen bg-slate-100/90 py-6 sm:py-10 px-3 sm:px-4 flex flex-col items-center justify-start">
+          <div className="w-full max-w-xl mb-4 flex items-center justify-between">
+            <button
+              onClick={() => navigate('/my-bookings')}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-emerald-700 transition-colors bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to My Bookings</span>
+            </button>
+            <span className="text-xs font-bold text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
+              Live Digital Pass
+            </span>
+          </div>
+          <BookingPass
+            booking={{
+              id: passId,
+              sport: 'Cricket',
+              venueName: 'Apex Arena & Sports Complex',
+              courtName: 'Pitch 1 - Turf Cricket Court',
+              venueAddress: 'Plot 42, Sector 18, Near Ring Road, Sports Hub, Mumbai, MH 400076',
+              userName: 'Krish Modi',
+              userPhone: '+91 98765 43210',
+              date: '2026-09-14',
+              startTime: '07:00 PM',
+              endTime: '08:00 PM',
+              totalAmount: 1499,
+              paymentStatus: 'Paid & Verified',
+              paymentId: 'TXN_9842107482',
+            }}
+            onShowToast={showToast}
+          />
+        </div>
+      );
+    }
+
     // 3. Venue Detail: /venues/:venueId
     const venueMatch = pathname.match(/^\/venues\/([^/]+)$/);
     if (venueMatch) {
@@ -118,12 +160,14 @@ function AppContent() {
     if (pathname === '/venues') {
       const sportParam = searchParams.get('sport') || 'all';
       const cityParam = searchParams.get('city') || 'All Cities';
+      const locationParam = searchParams.get('location') || 'all';
       const qParam = searchParams.get('q') || '';
       return (
         <VenuesPage
           onNavigate={navigate}
           initialSport={sportParam}
           initialCity={cityParam}
+          initialLocation={locationParam}
           initialQuery={qParam}
         />
       );
@@ -225,6 +269,7 @@ function AppContent() {
   };
 
   const isOwnerRoute = pathname.startsWith('/owner');
+  const isAuthRoute = pathname === '/signup' || pathname === '/auth/signup' || pathname === '/login' || pathname === '/auth/login';
 
   if (isOwnerRoute) {
     return (
@@ -263,7 +308,7 @@ function AppContent() {
       <main className="flex-1">{renderPage()}</main>
 
       {/* Footer */}
-      <Footer onNavigate={navigate} />
+      {!isAuthRoute && <Footer onNavigate={navigate} />}
     </div>
   );
 }

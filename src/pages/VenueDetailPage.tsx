@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   MapPin,
   Star,
@@ -16,8 +16,10 @@ import {
   Check,
   Building2,
   X,
+  Tag,
 } from 'lucide-react';
 import { Facility, Court, Review } from '../types';
+import { reviewService } from '../services/reviewService';
 
 interface VenueDetailPageProps {
   facility: Facility & { courts: Court[]; reviews: Review[] };
@@ -28,9 +30,29 @@ export const VenueDetailPage: React.FC<VenueDetailPageProps> = ({ facility, navi
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [liveReviews, setLiveReviews] = useState<Review[]>(facility.reviews || []);
+  const [ratingStats, setRatingStats] = useState(() =>
+    reviewService.getFacilityRatingStats(facility.id)
+  );
+
+  const loadReviewsAndStats = () => {
+    const revs = reviewService.getReviewsForFacility(facility.id);
+    setLiveReviews(revs.length > 0 ? revs : facility.reviews || []);
+    setRatingStats(reviewService.getFacilityRatingStats(facility.id));
+  };
+
+  useEffect(() => {
+    loadReviewsAndStats();
+    window.addEventListener('quickcourt_reviews_updated', loadReviewsAndStats);
+    window.addEventListener('storage', loadReviewsAndStats);
+    return () => {
+      window.removeEventListener('quickcourt_reviews_updated', loadReviewsAndStats);
+      window.removeEventListener('storage', loadReviewsAndStats);
+    };
+  }, [facility.id]);
 
   const courts = facility.courts || [];
-  const reviews = facility.reviews || [];
+  const reviews = liveReviews;
 
   const nextImage = (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -279,32 +301,45 @@ export const VenueDetailPage: React.FC<VenueDetailPageProps> = ({ facility, navi
                   </h3>
                   <div className="flex items-center gap-2 text-xs text-amber-300 font-bold mt-0.5">
                     <Star className="w-4 h-4 fill-amber-300" />
-                    <span>{facility.rating} out of 5.0 rating</span>
+                    <span>
+                      {ratingStats.totalReviews > 0 ? ratingStats.averageRating : facility.rating} out of 5.0 rating
+                    </span>
+                    <span className="text-slate-500 font-normal">
+                      • {ratingStats.totalReviews > 0 ? ratingStats.totalReviews : (facility.reviewsCount || reviews.length)} verified reviews
+                    </span>
                   </div>
                 </div>
               </div>
 
               {/* Ratings Category breakdown */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 p-3 bg-slate-800/50 rounded-xl text-[11px] text-slate-300">
-                <div className="text-center">
-                  <div className="text-slate-500 font-medium">Facility Quality</div>
-                  <div className="font-bold text-emerald-400 mt-0.5">★ 4.9</div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-slate-800/50 rounded-xl text-[11px] text-slate-300">
+                <div className="text-center p-2 rounded-lg bg-slate-900/50 border border-slate-800">
+                  <div className="text-slate-400 font-medium">Court Quality</div>
+                  <div className="font-bold text-amber-300 mt-0.5 flex items-center justify-center gap-1">
+                    <Star className="w-3 h-3 fill-amber-300" />
+                    <span>{ratingStats.courtQualityAvg}</span>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <div className="text-slate-500 font-medium">Cleanliness</div>
-                  <div className="font-bold text-emerald-400 mt-0.5">★ 4.8</div>
+                <div className="text-center p-2 rounded-lg bg-slate-900/50 border border-slate-800">
+                  <div className="text-slate-400 font-medium">Cleanliness</div>
+                  <div className="font-bold text-amber-300 mt-0.5 flex items-center justify-center gap-1">
+                    <Star className="w-3 h-3 fill-amber-300" />
+                    <span>{ratingStats.cleanlinessAvg}</span>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <div className="text-slate-500 font-medium">Staff Service</div>
-                  <div className="font-bold text-emerald-400 mt-0.5">★ 4.9</div>
+                <div className="text-center p-2 rounded-lg bg-slate-900/50 border border-slate-800">
+                  <div className="text-slate-400 font-medium">Staff & Service</div>
+                  <div className="font-bold text-amber-300 mt-0.5 flex items-center justify-center gap-1">
+                    <Star className="w-3 h-3 fill-amber-300" />
+                    <span>{ratingStats.staffServiceAvg}</span>
+                  </div>
                 </div>
-                <div className="text-center">
-                  <div className="text-slate-500 font-medium">Court Quality</div>
-                  <div className="font-bold text-emerald-400 mt-0.5">★ 5.0</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-slate-500 font-medium">Value / Money</div>
-                  <div className="font-bold text-emerald-400 mt-0.5">★ 4.7</div>
+                <div className="text-center p-2 rounded-lg bg-slate-900/50 border border-slate-800">
+                  <div className="text-slate-400 font-medium">Value for Money</div>
+                  <div className="font-bold text-amber-300 mt-0.5 flex items-center justify-center gap-1">
+                    <Star className="w-3 h-3 fill-amber-300" />
+                    <span>{ratingStats.valueForMoneyAvg}</span>
+                  </div>
                 </div>
               </div>
 
@@ -313,38 +348,65 @@ export const VenueDetailPage: React.FC<VenueDetailPageProps> = ({ facility, navi
                 {reviews.map((rev) => (
                   <div
                     key={rev.id}
-                    className="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-2"
+                    className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-2.5 hover:border-slate-600 transition-colors"
                   >
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5">
                         <img
-                          src={rev.userAvatar}
+                          src={rev.userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
                           alt={rev.userName}
-                          className="w-7 h-7 rounded-full object-cover border border-slate-600"
+                          className="w-8 h-8 rounded-full object-cover border border-slate-600 shrink-0"
                         />
                         <div>
-                          <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <div className="text-xs font-bold text-white flex items-center gap-1.5 flex-wrap">
                             <span>{rev.userName}</span>
                             {rev.verifiedBooking && (
-                              <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-1.5 py-0.2 rounded flex items-center gap-0.5">
+                              <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                                 <CheckCircle2 className="w-2.5 h-2.5" />
                                 Verified Player
                               </span>
                             )}
                           </div>
-                          <div className="text-[10px] text-slate-500">
-                            {new Date(rev.createdAt).toLocaleDateString()}
+                          <div className="text-[10px] text-slate-400">
+                            {new Date(rev.createdAt).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })}
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center text-amber-300 text-xs font-bold">
+                      <div className="flex items-center text-amber-300 text-xs font-bold shrink-0">
                         {Array.from({ length: rev.rating }).map((_, i) => (
                           <Star key={i} className="w-3.5 h-3.5 fill-amber-300" />
                         ))}
                       </div>
                     </div>
-                    <p className="text-xs text-slate-300 leading-relaxed">{rev.comment}</p>
+
+                    {/* Review Tags */}
+                    {rev.tags && rev.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        {rev.tags.map((t, idx) => (
+                          <span
+                            key={idx}
+                            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                              t === 'Needs improvement'
+                                ? 'bg-rose-950/40 text-rose-300 border-rose-800/40'
+                                : 'bg-emerald-950/40 text-emerald-300 border-emerald-800/40'
+                            }`}
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {rev.comment && (
+                      <p className="text-xs text-slate-300 leading-relaxed pt-0.5">
+                        {rev.comment}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>

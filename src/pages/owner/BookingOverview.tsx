@@ -31,7 +31,7 @@ export const BookingOverview: React.FC<BookingOverviewProps> = ({
 }) => {
   const { user } = useAuth();
   const facility = facilityService.getOwnerFacility(user?.id || 'usr_owner_1');
-  const courts = courtService.getCourts(facility.id);
+  const courts = courtService.getCourts(String(facility.id));
 
   const [bookings, setBookings] = useState<Booking[]>(() =>
     bookingService.getBookings()
@@ -53,6 +53,11 @@ export const BookingOverview: React.FC<BookingOverviewProps> = ({
 
   useEffect(() => {
     refreshBookings();
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('search');
+    if (q) {
+      setSearchQuery(q);
+    }
   }, []);
 
   const handleCancelBooking = (bookingId: string, reason: string) => {

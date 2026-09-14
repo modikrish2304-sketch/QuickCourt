@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
+import { createClient } from '@supabase/supabase-js';
 import {
   SEED_USERS,
   SEED_FACILITIES,
@@ -50,16 +51,55 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Supabase Backend Client
+const SUPABASE_PROJECT_ID = 'ivyvvxbqsxcgohkbbbff';
+const SUPABASE_URL = process.env.SUPABASE_URL || `https://${SUPABASE_PROJECT_ID}.supabase.co`;
+const SUPABASE_ANON_KEY =
+  process.env.SUPABASE_ANON_KEY || 'sb_publishable_uIJPAP40VD-RWJ2ii_sC1w_a7X92QjC';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: false },
+});
+
 // API Routes
 
-// 1. Health check
+// 1. Health check & Supabase Status
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
     appName: 'QuickCourt API',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
+    supabase: {
+      projectId: SUPABASE_PROJECT_ID,
+      connected: true,
+      url: SUPABASE_URL,
+    },
   });
+});
+
+app.get('/api/supabase/status', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('bookings').select('id').limit(1);
+    const tableFound = !error;
+    res.json({
+      connected: true,
+      projectId: SUPABASE_PROJECT_ID,
+      url: SUPABASE_URL,
+      tableExists: tableFound,
+      statusMessage: tableFound
+        ? 'Connected and table "bookings" is active'
+        : 'Connected to Supabase. Table "bookings" needs to be created in SQL Editor.',
+      error: error ? error.message : null,
+    });
+  } catch (err: any) {
+    res.json({
+      connected: false,
+      projectId: SUPABASE_PROJECT_ID,
+      url: SUPABASE_URL,
+      tableExists: false,
+      error: err.message,
+    });
+  }
 });
 
 // 2. Auth: Login
@@ -483,7 +523,7 @@ app.get('/api/slots', (req, res) => {
     slots.push({
       id: `slot_${courtId}_${date}_${hour}`,
       courtId: court.id,
-      facilityId: court.facilityId,
+      facilityId: String(court.facilityId),
       date: date as string,
       startTime,
       endTime,
@@ -547,6 +587,33 @@ app.post('/api/bookings', (req, res) => {
   );
 
   if (conflict) {
+    // Record failed appointment booking form to Supabase
+    supabase
+      .from('bookings')
+      .insert({
+        id: `FAILED-${date.replace(/-/g, '')}-${Date.now()}`,
+        user_id: userId,
+        user_name: userName || 'Player',
+        user_email: userEmail || null,
+        user_phone: userPhone || null,
+        venue_id: String(fac.id),
+        venue_name: fac.name,
+        court_id: court.id,
+        court_name: court.name,
+        sport: court.sport,
+        date,
+        start_time: startTime,
+        status: 'failed',
+        payment_status: 'failed',
+        error_message: 'Slot was just booked by another player',
+        error_type: 'slot_unavailable',
+        created_at: new Date().toISOString(),
+      })
+      .then(
+        () => console.log('[Server Supabase] Recorded failed booking (conflict)'),
+        (err) => console.warn('[Server Supabase] Note on fail log:', err.message)
+      );
+
     return res.status(409).json({
       error: 'This slot was just booked by another player. Please choose another time.',
     });
@@ -568,7 +635,7 @@ app.post('/api/bookings', (req, res) => {
     userName: userName || 'Player',
     userEmail: userEmail || '',
     userPhone: userPhone || '',
-    facilityId: fac.id,
+    facilityId: String(fac.id),
     facilityName: fac.name,
     facilityImage: fac.images[0],
     facilityAddress: fac.address,
@@ -592,6 +659,39 @@ app.post('/api/bookings', (req, res) => {
   };
 
   bookings.unshift(newBooking);
+
+  // Sync to Supabase table
+  supabase
+    .from('bookings')
+    .upsert({
+      id: newBooking.id,
+      user_id: newBooking.userId,
+      user_name: newBooking.userName,
+      user_email: newBooking.userEmail,
+      user_phone: newBooking.userPhone,
+      venue_id: newBooking.facilityId,
+      venue_name: newBooking.facilityName,
+      court_id: newBooking.courtId,
+      court_name: newBooking.courtName,
+      sport: newBooking.sport,
+      date: newBooking.date,
+      start_time: newBooking.startTime,
+      end_time: newBooking.endTime,
+      duration: '1 Hour',
+      court_price: newBooking.courtPrice,
+      platform_fee: newBooking.platformFee,
+      tax: newBooking.tax,
+      discount: newBooking.discount,
+      total_amount: newBooking.totalAmount,
+      status: newBooking.status,
+      payment_status: newBooking.paymentStatus,
+      transaction_id: newBooking.transactionId,
+      created_at: newBooking.createdAt,
+    })
+    .then(
+      () => console.log('[Server Supabase] Synced booking:', newBooking.id),
+      (err) => console.warn('[Server Supabase] Note on booking sync:', err.message)
+    );
 
   // Update user stats
   const u = users.find((user) => user.id === userId);
@@ -880,10 +980,14 @@ app.post('/api/reviews', (req, res) => {
     userName: userName || 'Player',
     userAvatar: userAvatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     rating: Number(rating),
+    courtQuality: Number(req.body.courtQuality) || 5,
+    cleanliness: Number(req.body.cleanliness) || 5,
+    staffService: Number(req.body.staffService) || 5,
+    tags: req.body.tags || ['Great court', 'Clean facility'],
     categories: categories || {
       facilityQuality: 5,
       cleanliness: 5,
-      staff: 5,
+      staffService: 5,
       courtQuality: 5,
       valueForMoney: 5,
     },

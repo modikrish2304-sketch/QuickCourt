@@ -1,19 +1,57 @@
 import { Booking, SportType } from '../types';
 import { SEED_BOOKINGS } from '../data/seedData';
+import { timeslotService, parseTimeToMinutes, notifyRealtimeSlotUpdate } from './timeslotService';
+import { supabaseService } from './supabaseService';
 
 const STORAGE_BOOKINGS_KEY = 'quickcourt_bookings';
+
+export type LiveBookingStatus = 'upcoming' | 'ready_for_entry' | 'in_progress' | 'completed' | 'cancelled';
+
+export function computeBookingLiveStatus(booking: Booking, referenceDate: Date = new Date()): Booking {
+  if (booking.status === 'cancelled') {
+    return { ...booking, status: 'cancelled', liveStatus: 'cancelled' };
+  }
+
+  const todayStr = referenceDate.toISOString().split('T')[0];
+  const currentMins = referenceDate.getHours() * 60 + referenceDate.getMinutes();
+
+  if (booking.date < todayStr) {
+    return { ...booking, status: 'completed', liveStatus: 'completed' };
+  }
+
+  if (booking.date > todayStr) {
+    return { ...booking, status: 'confirmed', liveStatus: 'upcoming' as any };
+  }
+
+  // Same day booking
+  const startMins = parseTimeToMinutes(booking.startTime || '07:00 PM');
+  const entryMins = startMins - 15;
+  const endMins = parseTimeToMinutes(booking.endTime || '08:00 PM');
+
+  if (currentMins < entryMins) {
+    return { ...booking, status: 'confirmed', liveStatus: 'upcoming' as any };
+  } else if (currentMins >= entryMins && currentMins < startMins) {
+    return { ...booking, status: 'confirmed', liveStatus: 'ready_for_entry' as any };
+  } else if (currentMins >= startMins && currentMins < endMins) {
+    return { ...booking, status: 'in_progress', liveStatus: 'in_progress' };
+  } else {
+    return { ...booking, status: 'completed', liveStatus: 'completed' };
+  }
+}
 
 function initializeBookings(): Booking[] {
   const existing = localStorage.getItem(STORAGE_BOOKINGS_KEY);
   if (existing) {
     try {
-      return JSON.parse(existing);
+      const parsed: Booking[] = JSON.parse(existing);
+      return parsed.map((b) => computeBookingLiveStatus(b));
     } catch {
       // Fallback
     }
   }
-  localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(SEED_BOOKINGS));
-  return SEED_BOOKINGS;
+  const seeded = SEED_BOOKINGS.map((b) => computeBookingLiveStatus(b));
+  localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(seeded));
+  return seeded;
 }
 
 export interface CreateBookingDraft {
@@ -65,6 +103,43 @@ export const bookingService = {
   },
 
   async createBooking(draft: CreateBookingDraft): Promise<Booking> {
+    // 1. Strict Server/Service-Level Double-Booking Validation
+    const validation = timeslotService.validateSlotAvailability(
+      draft.courtId,
+      draft.date,
+      draft.startTime,
+      draft.endTime
+    );
+
+    if (!validation.valid) {
+      const errorMsg =
+        validation.reason ||
+        'The requested slot is no longer available. Another player may have just reserved it.';
+
+      // Record failed booking attempt in Supabase backend
+      supabaseService.recordFailedBooking({
+        userId: draft.userId,
+        userName: draft.userName,
+        userEmail: draft.userEmail,
+        userPhone: draft.userPhone,
+        venueId: draft.venueId,
+        venueName: draft.venueName,
+        courtId: draft.courtId,
+        courtName: draft.courtName,
+        sport: draft.sport,
+        date: draft.date,
+        startTime: draft.startTime,
+        endTime: draft.endTime,
+        duration: draft.duration,
+        courtPrice: draft.courtPrice,
+        totalAmount: draft.totalAmount,
+        errorMessage: errorMsg,
+        errorType: 'slot_unavailable',
+      }).catch((err) => console.warn('[Supabase] Failed to log failed booking:', err));
+
+      throw new Error(errorMsg);
+    }
+
     const all = initializeBookings();
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
     const dateFormatted = draft.date.replace(/-/g, '');
@@ -103,6 +178,7 @@ export const bookingService = {
       total: totalAmount,
       price: draft.courtPrice,
       status: 'confirmed',
+      liveStatus: 'confirmed',
       paymentStatus: 'successful',
       paymentId: `pay_sim_${Date.now()}`,
       transactionId,
@@ -112,6 +188,14 @@ export const bookingService = {
 
     all.unshift(newBooking);
     localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(all));
+
+    // Save filled appointment booking form to Supabase backend table
+    supabaseService.saveBooking(newBooking).catch((err) => {
+      console.warn('[Supabase] Failed to sync new booking to Supabase:', err);
+    });
+
+    // Broadcast instant real-time update
+    notifyRealtimeSlotUpdate();
 
     return newBooking;
   },
@@ -131,6 +215,7 @@ export const bookingService = {
     const updatedBooking: Booking = {
       ...booking,
       status: 'cancelled',
+      liveStatus: 'cancelled',
       paymentStatus: 'refunded',
       cancellationReason: reason,
       refundAmount: booking.totalAmount,
@@ -138,6 +223,15 @@ export const bookingService = {
 
     all[index] = updatedBooking;
     localStorage.setItem(STORAGE_BOOKINGS_KEY, JSON.stringify(all));
+
+    // Update status in Supabase backend
+    supabaseService.updateBookingStatus(bookingId, {
+      status: 'cancelled',
+      payment_status: 'refunded',
+    }).catch((err) => console.warn('[Supabase] Failed to sync cancellation to Supabase:', err));
+
+    // Broadcast instant real-time update so that slot becomes Available immediately
+    notifyRealtimeSlotUpdate();
 
     return updatedBooking;
   }

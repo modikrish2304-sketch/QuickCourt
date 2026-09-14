@@ -154,7 +154,7 @@ export const analyticsService = {
 
   // GLOBAL ADMIN CONTROL CENTER ANALYTICS
   getGlobalAdminStats(filter: 'Today' | '7 Days' | '30 Days' | '90 Days' | 'This Year' = '30 Days') {
-    const facilitiesRaw = localStorage.getItem('quickcourt_facilities');
+    const facilitiesRaw = localStorage.getItem('quickcourt_facilities_v2');
     const facilities = facilitiesRaw ? JSON.parse(facilitiesRaw) : [];
     const pendingFacilitiesCount = facilities.filter((f: any) => f.status === 'pending').length;
     const approvedFacilitiesCount = facilities.filter((f: any) => f.status === 'approved').length;

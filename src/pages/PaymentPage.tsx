@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { bookingService } from '../services/bookingService';
 import { paymentService } from '../services/paymentService';
+import { supabaseService } from '../services/supabaseService';
 import { Booking } from '../types';
 import { Button } from '../components/Button';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import { UpiQrCode } from '../components/UpiQrCode';
 import {
   ShieldCheck,
   CreditCard,
@@ -73,13 +75,20 @@ export const PaymentPage: React.FC<PaymentPageProps> = ({
   const handleProcessPayment = async () => {
     try {
       setIsProcessing(true);
-      await paymentService.processSimulatedPayment({
+      const paymentRes = await paymentService.processSimulatedPayment({
         bookingId: booking.id,
         amount: booking.totalAmount || booking.courtPrice + 25,
         method: paymentMethod,
         upiId: paymentMethod === 'upi' ? upiId : undefined,
         bankName: paymentMethod === 'netbanking' ? selectedBank : undefined,
       });
+
+      // Update confirmed status in Supabase backend
+      supabaseService.updateBookingStatus(booking.id, {
+        status: 'confirmed',
+        payment_status: 'successful',
+        transaction_id: paymentRes.transactionId,
+      }).catch((err) => console.warn('[Supabase] Failed to update payment in Supabase:', err));
 
       setIsSuccess(true);
       if (onShowToast) {
@@ -95,9 +104,32 @@ export const PaymentPage: React.FC<PaymentPageProps> = ({
         onNavigate('/my-bookings');
       }, 1500);
     } catch (err: any) {
+      const errorMsg = err.message || 'Could not process payment.';
       if (onShowToast) {
-        onShowToast('error', 'Payment Failed', err.message || 'Could not process payment.');
+        onShowToast('error', 'Payment Failed', errorMsg);
       }
+
+      // Record failed payment / booking attempt to Supabase
+      supabaseService.recordFailedBooking({
+        id: booking.id,
+        userId: booking.userId,
+        userName: booking.userName,
+        userEmail: booking.userEmail,
+        userPhone: booking.userPhone,
+        venueId: booking.venueId || booking.facilityId,
+        venueName: booking.venueName || booking.facilityName,
+        courtId: booking.courtId,
+        courtName: booking.courtName,
+        sport: booking.sport,
+        date: booking.date,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        duration: booking.duration,
+        courtPrice: booking.courtPrice,
+        totalAmount: totalAmount,
+        errorMessage: errorMsg,
+        errorType: 'payment_failed',
+      }).catch((e) => console.warn('[Supabase] Error logging failed payment:', e));
     } finally {
       setIsProcessing(false);
     }
@@ -106,8 +138,8 @@ export const PaymentPage: React.FC<PaymentPageProps> = ({
   const totalAmount = booking.totalAmount || booking.courtPrice + (booking.platformFee || 25);
 
   return (
-    <div className="min-h-screen bg-slate-50/50 py-8 sm:py-12 text-slate-900">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-slate-50/50 pt-24 sm:pt-28 pb-16 text-slate-900">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         {/* Top Back Nav */}
         <button
           onClick={() => onNavigate(`/booking/${booking.venueId || booking.facilityId}`)}
@@ -229,28 +261,56 @@ export const PaymentPage: React.FC<PaymentPageProps> = ({
                   )}
 
                   {paymentMethod === 'upi' && (
-                    <div className="space-y-3">
-                      <label className="text-xs font-semibold text-slate-700 block">
-                        Enter UPI Virtual Payment Address (VPA)
-                      </label>
-                      <input
-                        type="text"
-                        value={upiId}
-                        onChange={(e) => setUpiId(e.target.value)}
-                        placeholder="username@bank"
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
-                      <div className="flex gap-2">
-                        {['@okaxis', '@okhdfcbank', '@paytm', '@ybl'].map((suf) => (
-                          <button
-                            key={suf}
-                            type="button"
-                            onClick={() => setUpiId(`athlete${suf}`)}
-                            className="px-2 py-1 rounded-md bg-slate-100 text-[10px] font-semibold text-slate-600 hover:bg-slate-200"
-                          >
-                            {suf}
-                          </button>
-                        ))}
+                    <div className="space-y-4">
+                      {/* Scan UPI QR Code Option */}
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col items-center justify-center">
+                        <span className="text-xs font-bold text-slate-800 mb-2">
+                          Scan to Pay with Any UPI App
+                        </span>
+                        <UpiQrCode
+                          upiId="quickcourt.sports@icici"
+                          payeeName={booking.venueName || booking.facilityName || 'QuickCourt Arena'}
+                          amount={totalAmount}
+                          bookingId={booking.id}
+                          type="upi_payment"
+                          size="md"
+                          onCopy={() => {
+                            if (onShowToast) {
+                              onShowToast('info', 'UPI ID Copied', 'quickcourt.sports@icici copied to clipboard.');
+                            }
+                          }}
+                        />
+                      </div>
+
+                      <div className="relative flex py-1 items-center">
+                        <div className="flex-grow border-t border-slate-200" />
+                        <span className="flex-shrink mx-3 text-[10px] uppercase font-bold text-slate-400">or enter UPI ID</span>
+                        <div className="flex-grow border-t border-slate-200" />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-slate-700 block">
+                          Enter UPI Virtual Payment Address (VPA)
+                        </label>
+                        <input
+                          type="text"
+                          value={upiId}
+                          onChange={(e) => setUpiId(e.target.value)}
+                          placeholder="username@bank"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                        <div className="flex gap-2">
+                          {['@okaxis', '@okhdfcbank', '@paytm', '@ybl'].map((suf) => (
+                            <button
+                              key={suf}
+                              type="button"
+                              onClick={() => setUpiId(`athlete${suf}`)}
+                              className="px-2 py-1 rounded-md bg-slate-100 text-[10px] font-semibold text-slate-600 hover:bg-slate-200"
+                            >
+                              {suf}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
