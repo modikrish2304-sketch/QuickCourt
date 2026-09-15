@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { Search, MapPin, Aperture, ChevronDown, ArrowRight, Star } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, MapPin, Aperture, ChevronDown, ArrowRight, Star, Check, Trophy } from 'lucide-react';
 import { GiShuttlecock, GiPingPongBat } from 'react-icons/gi';
 import { MdSportsCricket, MdSportsTennis, MdSportsBasketball } from 'react-icons/md';
 import { TbBallFootball } from 'react-icons/tb';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { venueService } from '../services/venueService';
 import { VENUES_DATASET } from '../data/venues';
 import { SportCard } from '../components/SportCard';
@@ -27,10 +27,107 @@ const CITY_IMAGES: Record<string, string> = {
   Kolkata: 'https://images.unsplash.com/photo-1558431382-27e303142255?w=600&auto=format&fit=crop&q=80',
 };
 
+const getSportIcon = (name: string) => {
+  const n = name.toLowerCase();
+  if (n.includes('badminton')) return '🏸';
+  if (n.includes('football')) return '⚽';
+  if (n.includes('cricket')) return '🏏';
+  if (n.includes('tennis')) return '🎾';
+  if (n.includes('basketball')) return '🏀';
+  if (n.includes('pickleball')) return '🏓';
+  if (n.includes('table tennis') || n.includes('ping pong')) return '🏓';
+  if (n.includes('swimming') || n.includes('pool')) return '🏊';
+  if (n.includes('volleyball')) return '🏐';
+  if (n.includes('squash')) return '🎾';
+  return '🏅';
+};
+
+const SPORT_OPTIONS = [
+  { value: 'all', label: 'All Sports', icon: '🏆' },
+  { value: 'Badminton', label: 'Badminton', icon: '🏸' },
+  { value: 'Football', label: 'Football', icon: '⚽' },
+  { value: 'Cricket', label: 'Cricket', icon: '🏏' },
+  { value: 'Tennis', label: 'Tennis', icon: '🎾' },
+  { value: 'Basketball', label: 'Basketball', icon: '🏀' },
+  { value: 'Pickleball', label: 'Pickleball', icon: '🏓' },
+];
+
+const CITY_OPTIONS = [
+  { value: 'all', label: 'All Cities', icon: '📍' },
+  { value: 'Ahmedabad', label: 'Ahmedabad', icon: '🏙️' },
+  { value: 'Surat', label: 'Surat', icon: '🏙️' },
+  { value: 'Vadodara', label: 'Vadodara', icon: '🏙️' },
+  { value: 'Mumbai', label: 'Mumbai', icon: '🏙️' },
+  { value: 'Delhi', label: 'Delhi', icon: '🏙️' },
+  { value: 'Bengaluru', label: 'Bengaluru', icon: '🏙️' },
+];
+
 export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   const [selectedSport, setSelectedSport] = useState<string>('all');
   const [selectedCity, setSelectedCity] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [isSportDropdownOpen, setIsSportDropdownOpen] = useState(false);
+  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
+  const [sportDropUp, setSportDropUp] = useState(false);
+  const [cityDropUp, setCityDropUp] = useState(false);
+
+  const sportDropdownRef = useRef<HTMLDivElement>(null);
+  const cityDropdownRef = useRef<HTMLDivElement>(null);
+
+  const checkPlacement = (ref: React.RefObject<HTMLDivElement | null>, setDropUp: (val: boolean) => void) => {
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const dropdownHeight = 350;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      // Intelligently open upward if close to the bottom of the viewport and more space above
+      if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+        setDropUp(true);
+      } else {
+        setDropUp(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (isSportDropdownOpen) {
+      checkPlacement(sportDropdownRef, setSportDropUp);
+    }
+  }, [isSportDropdownOpen]);
+
+  useEffect(() => {
+    if (isCityDropdownOpen) {
+      checkPlacement(cityDropdownRef, setCityDropUp);
+    }
+  }, [isCityDropdownOpen]);
+
+  useEffect(() => {
+    if (!isSportDropdownOpen && !isCityDropdownOpen) return;
+    const handleUpdate = () => {
+      if (isSportDropdownOpen) checkPlacement(sportDropdownRef, setSportDropUp);
+      if (isCityDropdownOpen) checkPlacement(cityDropdownRef, setCityDropUp);
+    };
+    window.addEventListener('resize', handleUpdate);
+    window.addEventListener('scroll', handleUpdate, { passive: true });
+    return () => {
+      window.removeEventListener('resize', handleUpdate);
+      window.removeEventListener('scroll', handleUpdate);
+    };
+  }, [isSportDropdownOpen, isCityDropdownOpen]);
+
+  // Smoothly close dropdowns on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (sportDropdownRef.current && !sportDropdownRef.current.contains(event.target as Node)) {
+        setIsSportDropdownOpen(false);
+      }
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target as Node)) {
+        setIsCityDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   
   const allSports = venueService.getAllSports();
   const allCities = venueService.getAllCities();
@@ -91,7 +188,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
     <div className="min-h-screen bg-slate-50 text-slate-900">
       {/* HERO SECTION */}
       <section 
-        className="relative flex min-h-[500px] md:min-h-[600px] flex-col items-center justify-center overflow-hidden bg-[#041A1A] bg-cover bg-center bg-no-repeat pt-20 pb-16"
+        className="relative z-20 flex min-h-[500px] md:min-h-[600px] flex-col items-center justify-center bg-[#041A1A] bg-cover bg-center bg-no-repeat pt-20 pb-16"
         style={{ backgroundImage: `url(${heroBackground})` }}
       >
         <div className="absolute inset-0 bg-slate-900/40" />
@@ -117,77 +214,263 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           </motion.p>
 
           {/* Search Card */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 25 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.45, ease: "easeOut" }}
-            className="w-full max-w-3xl rounded-[2rem] md:rounded-full bg-white p-2 sm:p-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100"
+            className="w-full max-w-4xl rounded-2xl md:rounded-full bg-white p-2 md:p-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100 relative z-30"
           >
-            <form onSubmit={handleHeroSearch} className="flex flex-col gap-2 md:flex-row md:items-center h-auto md:h-[60px]">
+            <form onSubmit={handleHeroSearch} className="flex flex-col gap-2.5 md:flex-row md:items-center">
               
               {/* Search Query */}
-              <div className="flex h-[48px] md:h-full items-center gap-3 rounded-full px-5 hover:bg-slate-50 flex-[2] transition relative group">
+              <div className="flex h-[50px] items-center gap-3 rounded-xl md:rounded-full px-4 bg-slate-50/60 hover:bg-slate-100/70 border border-slate-200/80 md:border-transparent md:bg-transparent md:hover:bg-slate-50/80 flex-1 min-w-[200px] transition relative group">
                 <Search className="h-5 w-5 text-slate-400 group-hover:text-emerald-600 shrink-0" strokeWidth={2} />
                 <input
                   type="text"
-                  placeholder="Search venues, courts, or localities..."
+                  placeholder="Search venues, courts, or locations..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent text-[15px] text-slate-900 outline-none placeholder:text-slate-400"
+                  className="w-full bg-transparent text-[14px] md:text-[15px] font-medium text-slate-900 outline-none placeholder:text-slate-400"
                 />
               </div>
 
-              <div className="hidden h-8 w-[1px] bg-slate-200 md:block shrink-0" />
+              <div className="hidden h-8 w-[1px] bg-slate-200 md:block shrink-0 mx-0.5" />
               
-              {/* Sport */}
-              <div className="flex h-[48px] md:h-full items-center gap-2.5 rounded-full px-4 hover:bg-slate-50 flex-[1.2] transition-colors cursor-pointer relative group focus-within:bg-emerald-50/40">
-                <Aperture className="h-5 w-5 text-emerald-600 group-hover:text-emerald-700 shrink-0 transition-colors" strokeWidth={2.2} />
-                <div className="flex-1 flex flex-col justify-center min-w-0 text-left">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700/80">Sport</p>
-                  <select
-                    value={selectedSport}
-                    onChange={(e) => setSelectedSport(e.target.value)}
-                    className="w-full cursor-pointer bg-transparent text-[14px] font-bold text-slate-900 outline-none appearance-none pr-5"
+              {/* Sport Selector */}
+              <div
+                ref={sportDropdownRef}
+                className={`relative h-[50px] w-full md:w-[190px] lg:w-[205px] shrink-0 ${
+                  isSportDropdownOpen ? 'z-50' : 'z-20'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isSportDropdownOpen) {
+                      checkPlacement(sportDropdownRef, setSportDropUp);
+                    }
+                    setIsSportDropdownOpen((prev) => !prev);
+                    setIsCityDropdownOpen(false);
+                  }}
+                  className={`w-full h-full flex items-center justify-between gap-2.5 px-3 rounded-xl border text-left transition-all duration-200 cursor-pointer select-none ${
+                    isSportDropdownOpen
+                      ? 'bg-white border-emerald-600 ring-2 ring-emerald-500/20 shadow-xs'
+                      : 'bg-slate-50/80 hover:bg-slate-100/90 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      isSportDropdownOpen
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-emerald-100 text-emerald-700'
+                    }`}
                   >
-                    <option value="all" className="font-semibold text-slate-800">All Sports</option>
-                    {allSports.map(s => (
-                      <option key={s.id} value={s.name} className="font-medium text-slate-800 py-1">
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-slate-600 pointer-events-none transition-colors" />
+                    <Trophy className="w-4 h-4" strokeWidth={2.2} />
+                  </div>
+
+                  <div className="flex-1 min-w-0 flex flex-col justify-center leading-tight">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block truncate">
+                      SPORT
+                    </span>
+                    <span className="text-[13px] font-bold text-slate-900 truncate block">
+                      {selectedSport === 'all' ? 'All Sports' : selectedSport}
+                    </span>
+                  </div>
+
+                  <ChevronDown
+                    className={`h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                      isSportDropdownOpen ? 'rotate-180 text-emerald-600' : ''
+                    }`}
+                    strokeWidth={2.2}
+                  />
+                </button>
+
+                {/* Sport Dropdown Panel */}
+                <AnimatePresence>
+                  {isSportDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: sportDropUp ? -6 : 6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: sportDropUp ? -4 : 4, scale: 0.98 }}
+                      transition={{ duration: 0.16, ease: 'easeOut' }}
+                      onClick={(e) => e.stopPropagation()}
+                      className={`absolute left-0 ${
+                        sportDropUp ? 'bottom-[calc(100%+6px)] origin-bottom' : 'top-[calc(100%+6px)] origin-top'
+                      } w-full min-w-[230px] z-50 rounded-xl bg-white border border-slate-200 shadow-xl overflow-hidden text-left`}
+                    >
+                      <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-600">
+                          SELECT SPORT
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                          {SPORT_OPTIONS.length - 1} Sports
+                        </span>
+                      </div>
+
+                      <div className="p-2 max-h-[min(300px,calc(100vh-160px))] overflow-y-auto space-y-1 overscroll-contain [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full">
+                        {SPORT_OPTIONS.map((sport) => {
+                          const isSelected = selectedSport === sport.value;
+                          return (
+                            <button
+                              key={sport.value}
+                              type="button"
+                              onClick={() => {
+                                setSelectedSport(sport.value);
+                                setIsSportDropdownOpen(false);
+                              }}
+                              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg border text-[13px] transition-all duration-150 text-left cursor-pointer ${
+                                isSelected
+                                  ? 'bg-emerald-50/90 border-emerald-500 text-emerald-950 font-bold shadow-xs ring-1 ring-emerald-500/20'
+                                  : 'bg-white hover:bg-slate-50 border-slate-200/70 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-medium'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span
+                                  className={`w-7 h-7 rounded-md flex items-center justify-center text-sm shrink-0 border transition-colors ${
+                                    isSelected
+                                      ? 'bg-emerald-100 border-emerald-200 text-emerald-800'
+                                      : 'bg-slate-100/80 border-slate-200/60 text-slate-700'
+                                  }`}
+                                >
+                                  {sport.icon}
+                                </span>
+                                <span className="truncate">{sport.label}</span>
+                              </div>
+                              {isSelected && (
+                                <span className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-white shrink-0 ml-2 shadow-2xs">
+                                  <Check className="w-3 h-3 stroke-[3]" />
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
-              <div className="hidden h-8 w-[1px] bg-slate-200 md:block shrink-0" />
+              <div className="hidden h-8 w-[1px] bg-slate-200 md:block shrink-0 mx-0.5" />
 
-              {/* Cities */}
-              <div className="flex h-[48px] md:h-full items-center gap-2.5 rounded-full px-4 hover:bg-slate-50 flex-[1.2] transition-colors cursor-pointer relative group focus-within:bg-emerald-50/40">
-                <MapPin className="h-5 w-5 text-emerald-600 group-hover:text-emerald-700 shrink-0 transition-colors" strokeWidth={2.2} />
-                <div className="flex-1 flex flex-col justify-center min-w-0 text-left">
-                  <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700/80">City</p>
-                  <select
-                    value={selectedCity}
-                    onChange={(e) => setSelectedCity(e.target.value)}
-                    className="w-full cursor-pointer bg-transparent text-[14px] font-bold text-slate-900 outline-none appearance-none pr-5"
+              {/* City Selector */}
+              <div
+                ref={cityDropdownRef}
+                className={`relative h-[50px] w-full md:w-[190px] lg:w-[205px] shrink-0 ${
+                  isCityDropdownOpen ? 'z-50' : 'z-20'
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isCityDropdownOpen) {
+                      checkPlacement(cityDropdownRef, setCityDropUp);
+                    }
+                    setIsCityDropdownOpen((prev) => !prev);
+                    setIsSportDropdownOpen(false);
+                  }}
+                  className={`w-full h-full flex items-center justify-between gap-2.5 px-3 rounded-xl border text-left transition-all duration-200 cursor-pointer select-none ${
+                    isCityDropdownOpen
+                      ? 'bg-white border-emerald-600 ring-2 ring-emerald-500/20 shadow-xs'
+                      : 'bg-slate-50/80 hover:bg-slate-100/90 border-slate-200 hover:border-slate-300'
+                  }`}
+                >
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                      isCityDropdownOpen
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-emerald-100 text-emerald-700'
+                    }`}
                   >
-                    <option value="all" className="font-semibold text-slate-800">All Cities</option>
-                    {allCities.map(c => (
-                      <option key={c.id} value={c.name} className="font-medium text-slate-800 py-1">
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-hover:text-slate-600 pointer-events-none transition-colors" />
+                    <MapPin className="w-4 h-4" strokeWidth={2.2} />
+                  </div>
+
+                  <div className="flex-1 min-w-0 flex flex-col justify-center leading-tight">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block truncate">
+                      CITY
+                    </span>
+                    <span className="text-[13px] font-bold text-slate-900 truncate block">
+                      {selectedCity === 'all' ? 'All Cities' : selectedCity}
+                    </span>
+                  </div>
+
+                  <ChevronDown
+                    className={`h-4 w-4 text-slate-400 shrink-0 transition-transform duration-200 ${
+                      isCityDropdownOpen ? 'rotate-180 text-emerald-600' : ''
+                    }`}
+                    strokeWidth={2.2}
+                  />
+                </button>
+
+                {/* City Dropdown Panel */}
+                <AnimatePresence>
+                  {isCityDropdownOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: cityDropUp ? -6 : 6, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: cityDropUp ? -4 : 4, scale: 0.98 }}
+                      transition={{ duration: 0.16, ease: 'easeOut' }}
+                      onClick={(e) => e.stopPropagation()}
+                      className={`absolute left-0 ${
+                        cityDropUp ? 'bottom-[calc(100%+6px)] origin-bottom' : 'top-[calc(100%+6px)] origin-top'
+                      } w-full min-w-[230px] z-50 rounded-xl bg-white border border-slate-200 shadow-xl overflow-hidden text-left`}
+                    >
+                      <div className="px-4 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                        <span className="text-[11px] font-black uppercase tracking-wider text-slate-600">
+                          SELECT CITY
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                          {CITY_OPTIONS.length - 1} Cities
+                        </span>
+                      </div>
+
+                      <div className="p-2 max-h-[min(300px,calc(100vh-160px))] overflow-y-auto space-y-1 overscroll-contain [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-slate-200 [&::-webkit-scrollbar-thumb]:rounded-full">
+                        {CITY_OPTIONS.map((city) => {
+                          const isSelected = selectedCity === city.value;
+                          return (
+                            <button
+                              key={city.value}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCity(city.value);
+                                setIsCityDropdownOpen(false);
+                              }}
+                              className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg border text-[13px] transition-all duration-150 text-left cursor-pointer ${
+                                isSelected
+                                  ? 'bg-emerald-50/90 border-emerald-500 text-emerald-950 font-bold shadow-xs ring-1 ring-emerald-500/20'
+                                  : 'bg-white hover:bg-slate-50 border-slate-200/70 hover:border-slate-300 text-slate-700 hover:text-slate-900 font-medium'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span
+                                  className={`w-7 h-7 rounded-md flex items-center justify-center text-sm shrink-0 border transition-colors ${
+                                    isSelected
+                                      ? 'bg-emerald-100 border-emerald-200 text-emerald-800'
+                                      : 'bg-slate-100/80 border-slate-200/60 text-slate-700'
+                                  }`}
+                                >
+                                  {city.icon}
+                                </span>
+                                <span className="truncate">{city.label}</span>
+                              </div>
+                              {isSelected && (
+                                <span className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center text-white shrink-0 ml-2 shadow-2xs">
+                                  <Check className="w-3 h-3 stroke-[3]" />
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               <Button 
                 type="submit" 
                 variant="primary" 
                 rightIcon={<ArrowRight className="w-4 h-4" />}
-                className="h-[48px] md:h-full rounded-2xl md:rounded-full px-8 shrink-0 bg-[#16A34A] hover:bg-green-700 text-white font-bold w-full md:w-auto mt-2 md:mt-0 transition-all duration-200 shadow-sm hover:shadow"
+                className="h-[50px] rounded-xl md:rounded-full px-7 shrink-0 bg-[#16A34A] hover:bg-green-700 text-white font-bold w-full md:w-auto transition-all duration-200 shadow-sm hover:shadow"
               >
                 Search
               </Button>
