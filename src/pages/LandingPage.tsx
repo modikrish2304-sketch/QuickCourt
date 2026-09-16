@@ -132,14 +132,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   const allSports = venueService.getAllSports();
   const allCities = venueService.getAllCities();
 
-  const handleHeroSearch = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleHeroSearch = (e?: React.FormEvent | React.MouseEvent) => {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
+    setIsSportDropdownOpen(false);
+    setIsCityDropdownOpen(false);
+
     const params = new URLSearchParams();
-    if (searchQuery) params.append('q', searchQuery);
-    if (selectedSport !== 'all') params.append('sport', selectedSport);
-    if (selectedCity !== 'all') params.append('city', selectedCity);
+    const cleanQuery = searchQuery.trim();
+    if (cleanQuery) params.append('q', cleanQuery);
+    if (selectedSport && selectedSport !== 'all' && selectedSport !== 'All Sports') {
+      params.append('sport', selectedSport);
+    }
+    if (selectedCity && selectedCity !== 'all' && selectedCity !== 'All Cities') {
+      params.append('city', selectedCity);
+    }
     
-    onNavigate(`/venues?${params.toString()}`);
+    const queryString = params.toString();
+    onNavigate(queryString ? `/venues?${queryString}` : '/venues');
   };
 
   const sports = [
@@ -220,12 +231,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             transition={{ duration: 0.8, delay: 0.45, ease: "easeOut" }}
             className="w-full max-w-4xl rounded-2xl md:rounded-full bg-white p-2 md:p-2.5 shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-slate-100 relative z-30"
           >
-            <form onSubmit={handleHeroSearch} className="flex flex-col gap-2.5 md:flex-row md:items-center">
+            <form id="hero-search-form" onSubmit={handleHeroSearch} className="flex flex-col gap-2.5 md:flex-row md:items-center">
               
               {/* Search Query */}
               <div className="flex h-[50px] items-center gap-3 rounded-xl md:rounded-full px-4 bg-slate-50/60 hover:bg-slate-100/70 border border-slate-200/80 md:border-transparent md:bg-transparent md:hover:bg-slate-50/80 flex-1 min-w-[200px] transition relative group">
                 <Search className="h-5 w-5 text-slate-400 group-hover:text-emerald-600 shrink-0" strokeWidth={2} />
                 <input
+                  id="hero-search-input"
                   type="text"
                   placeholder="Search venues, courts, or locations..."
                   value={searchQuery}
@@ -467,10 +479,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
               </div>
 
               <Button 
+                id="hero-search-button"
                 type="submit" 
                 variant="primary" 
+                onClick={handleHeroSearch}
                 rightIcon={<ArrowRight className="w-4 h-4" />}
-                className="h-[50px] rounded-xl md:rounded-full px-7 shrink-0 bg-[#16A34A] hover:bg-green-700 text-white font-bold w-full md:w-auto transition-all duration-200 shadow-sm hover:shadow"
+                className="h-[50px] rounded-xl md:rounded-full px-7 shrink-0 bg-[#16A34A] hover:bg-green-700 text-white font-bold w-full md:w-auto transition-all duration-200 shadow-sm hover:shadow cursor-pointer select-none"
               >
                 Search
               </Button>

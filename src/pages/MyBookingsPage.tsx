@@ -51,7 +51,11 @@ export const MyBookingsPage: React.FC<MyBookingsPageProps> = ({
 
   const loadBookings = () => {
     try {
-      const all = bookingService.getBookings(user?.id);
+      if (!user?.id) {
+        setBookings([]);
+        return;
+      }
+      const all = bookingService.getBookings(user.id);
       setBookings(all);
     } finally {
       setLoading(false);

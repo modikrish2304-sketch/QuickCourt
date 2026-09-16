@@ -159,11 +159,12 @@ function AppContent() {
     // 4. Venues Catalog: /venues
     if (pathname === '/venues') {
       const sportParam = searchParams.get('sport') || 'all';
-      const cityParam = searchParams.get('city') || 'All Cities';
+      const cityParam = searchParams.get('city') || 'all';
       const locationParam = searchParams.get('location') || 'all';
       const qParam = searchParams.get('q') || '';
       return (
         <VenuesPage
+          key={currentRoute}
           onNavigate={navigate}
           initialSport={sportParam}
           initialCity={cityParam}

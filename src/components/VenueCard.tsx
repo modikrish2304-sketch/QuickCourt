@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { MapPin, Star, ArrowRight, ShieldCheck, Info, Calendar, Zap } from 'lucide-react';
+import { MapPin, Star, ArrowRight, Calendar } from 'lucide-react';
 import { Facility } from '../types';
 
 export interface VenueCardProps {
@@ -47,9 +47,6 @@ export const VenueCard: React.FC<VenueCardProps> = ({ venue, onViewDetails, onBo
   // Dot color
   const statusColor = slots === 0 ? 'bg-red-500' : slots <= 3 ? 'bg-amber-500' : 'bg-emerald-500';
   const statusBg = slots === 0 ? 'bg-red-50 text-red-700 border-red-200' : slots <= 3 ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200';
-
-  // Verification status rule
-  const isVerified = venue.verified === true && venue.demoData === false;
 
   const handleDetailsClick = () => {
     if (onViewDetails) {
@@ -142,24 +139,12 @@ export const VenueCard: React.FC<VenueCardProps> = ({ venue, onViewDetails, onBo
           ))}
         </div>
 
-        {/* Availability Badge & Status */}
-        <div className="flex items-center justify-between gap-2 mb-3">
+        {/* Availability Badge */}
+        <div className="flex items-center gap-2 mb-3">
           <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold ${statusBg}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${statusColor}`} />
             <span>{availText}</span>
           </div>
-
-          {isVerified ? (
-            <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-700">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span className="hidden sm:inline">Verified</span>
-            </div>
-          ) : (
-            <div className="flex items-center gap-1 text-[11px] font-semibold text-slate-400">
-              <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span className="hidden sm:inline">Demo</span>
-            </div>
-          )}
         </div>
 
         {/* Bottom Actions Row: View Details & Book Now */}

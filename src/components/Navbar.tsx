@@ -40,7 +40,8 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
   const navLinks = [
     { label: 'Home', route: '/' },
     { label: 'Find Venues', route: '/venues' },
-    ...(isAuthenticated ? [{ label: 'My Bookings', route: '/my-bookings' }] : []),
+    { label: 'My Bookings', route: '/my-bookings' },
+    ...(isAuthenticated ? [{ label: 'Owner Portal', route: '/owner/dashboard' }] : []),
   ];
 
   const handleLinkClick = (route: string) => {
@@ -155,16 +156,18 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
                   </div>
 
                   <div className="py-1">
-                    <button
-                      onClick={() => {
-                        setUserDropdownOpen(false);
-                        handleLinkClick('/owner/dashboard');
-                      }}
-                      className="w-full text-left px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2.5 transition-colors"
-                    >
-                      <Building2 className="w-4 h-4 text-emerald-600" />
-                      Owner Dashboard
-                    </button>
+                    {(user.role === 'facility_owner' || user.role === 'admin') && (
+                      <button
+                        onClick={() => {
+                          setUserDropdownOpen(false);
+                          handleLinkClick('/owner/dashboard');
+                        }}
+                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2.5 transition-colors"
+                      >
+                        <Building2 className="w-4 h-4 text-emerald-600" />
+                        Owner Dashboard
+                      </button>
+                    )}
 
                     <button
                       onClick={() => {
@@ -208,7 +211,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
                 size="sm"
                 onClick={() => handleLinkClick('/login')}
               >
-                Log In
+                Login
               </Button>
               <Button
                 variant="primary"
@@ -317,7 +320,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
                   onClick={() => handleLinkClick('/login')}
                   className="w-full"
                 >
-                  Log In
+                  Login
                 </Button>
                 <Button
                   variant="primary"

@@ -25,6 +25,10 @@ export const VenuesPage: React.FC<VenuesPageProps> = ({
   initialCity = 'all',
   initialLocation = 'all',
 }) => {
+  const normalizedInitialCity = !initialCity || initialCity === 'All Cities' ? 'all' : initialCity;
+  const normalizedInitialSport = !initialSport || initialSport === 'All Sports' ? 'all' : initialSport;
+  const normalizedInitialLocation = !initialLocation || initialLocation === 'All Locations' ? 'all' : initialLocation;
+
   const [venues, setVenues] = useState<Facility[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(initialQuery);
@@ -35,15 +39,27 @@ export const VenuesPage: React.FC<VenuesPageProps> = ({
   const [sortBy, setSortBy] = useState('recommended');
 
   const [filters, setFilters] = useState<FilterState>({
-    sport: initialSport,
-    city: initialCity,
+    sport: normalizedInitialSport,
+    city: normalizedInitialCity,
     venueSearch: '',
-    location: initialLocation,
+    location: normalizedInitialLocation,
     priceRange: 'all',
     venueType: 'all',
     minRating: 0,
     verifiedOnly: false,
   });
+
+  // Sync state when props change (e.g. from hero search or navbar navigation)
+  useEffect(() => {
+    setSearch(initialQuery);
+    setFilters((prev) => ({
+      ...prev,
+      sport: !initialSport || initialSport === 'All Sports' ? 'all' : initialSport,
+      city: !initialCity || initialCity === 'All Cities' ? 'all' : initialCity,
+      location: !initialLocation || initialLocation === 'All Locations' ? 'all' : initialLocation,
+    }));
+    setPage(1);
+  }, [initialQuery, initialSport, initialCity, initialLocation]);
 
   const fetchVenues = async () => {
     try {
@@ -52,9 +68,9 @@ export const VenuesPage: React.FC<VenuesPageProps> = ({
       const filterParams: VenueFilterParams = {
         search,
         venueSearch: filters.venueSearch && filters.venueSearch.trim() ? filters.venueSearch.trim() : undefined,
-        sport: filters.sport !== 'all' ? filters.sport : undefined,
-        city: filters.city && filters.city !== 'all' ? filters.city : undefined,
-        location: filters.location !== 'all' ? filters.location : undefined,
+        sport: filters.sport && filters.sport !== 'all' && filters.sport !== 'All Sports' ? filters.sport : undefined,
+        city: filters.city && filters.city !== 'all' && filters.city !== 'All Cities' ? filters.city : undefined,
+        location: filters.location && filters.location !== 'all' && filters.location !== 'All Locations' ? filters.location : undefined,
         priceRange: filters.priceRange !== 'all' ? (filters.priceRange as any) : undefined,
         venueType: filters.venueType !== 'all' ? (filters.venueType as any) : undefined,
         minRating: filters.minRating > 0 ? filters.minRating : undefined,
@@ -114,10 +130,10 @@ export const VenuesPage: React.FC<VenuesPageProps> = ({
   };
 
   const hasActiveFilters =
-    filters.sport !== 'all' ||
-    (Boolean(filters.city) && filters.city !== 'all') ||
+    (filters.sport !== 'all' && filters.sport !== 'All Sports') ||
+    (Boolean(filters.city) && filters.city !== 'all' && filters.city !== 'All Cities') ||
     Boolean(filters.venueSearch) ||
-    filters.location !== 'all' ||
+    (filters.location !== 'all' && filters.location !== 'All Locations') ||
     filters.priceRange !== 'all' ||
     filters.venueType !== 'all' ||
     filters.minRating > 0 ||
@@ -229,7 +245,7 @@ export const VenuesPage: React.FC<VenuesPageProps> = ({
                 </button>
               </span>
             )}
-            {filters.city && filters.city !== 'all' && (
+            {filters.city && filters.city !== 'all' && filters.city !== 'All Cities' && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
                 City: {filters.city}
                 <button onClick={() => removeFilterTag('city')}>
@@ -237,7 +253,7 @@ export const VenuesPage: React.FC<VenuesPageProps> = ({
                 </button>
               </span>
             )}
-            {filters.location !== 'all' && (
+            {filters.location !== 'all' && filters.location !== 'All Locations' && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
                 Location: {filters.location}
                 <button onClick={() => removeFilterTag('location')}>
@@ -245,7 +261,7 @@ export const VenuesPage: React.FC<VenuesPageProps> = ({
                 </button>
               </span>
             )}
-            {filters.sport !== 'all' && (
+            {filters.sport && filters.sport !== 'all' && filters.sport !== 'All Sports' && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
                 Sport: {filters.sport}
                 <button onClick={() => removeFilterTag('sport')}>

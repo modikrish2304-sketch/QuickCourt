@@ -4,6 +4,7 @@ import { SEED_USERS } from '../data/seedData';
 const STORAGE_USERS_KEY = 'quickcourt_users';
 const STORAGE_CURRENT_USER_KEY = 'quickcourt_current_user';
 const STORAGE_PENDING_OTP_KEY = 'quickcourt_pending_otp';
+const STORAGE_AUTH_SESSION_KEY = 'quickcourt_auth_session';
 
 function initializeUsers(): User[] {
   const existing = localStorage.getItem(STORAGE_USERS_KEY);
@@ -24,19 +25,61 @@ export const authService = {
   },
 
   getCurrentUser(): User | null {
-    const raw = localStorage.getItem(STORAGE_CURRENT_USER_KEY);
-    if (!raw) {
-      // Default to demo user for seamless instant demo inspection
-      const defaultUser = initializeUsers()[0];
-      if (defaultUser) {
-        localStorage.setItem(STORAGE_CURRENT_USER_KEY, JSON.stringify(defaultUser));
-        return defaultUser;
-      }
+    // 1. First check if an explicit active session exists
+    const rawSession =
+      localStorage.getItem(STORAGE_AUTH_SESSION_KEY) ||
+      sessionStorage.getItem(STORAGE_AUTH_SESSION_KEY);
+
+    if (!rawSession) {
+      // Clear any legacy stale or hardcoded demo session
+      localStorage.removeItem(STORAGE_CURRENT_USER_KEY);
+      sessionStorage.removeItem(STORAGE_CURRENT_USER_KEY);
       return null;
     }
+
     try {
-      return JSON.parse(raw);
+      const session = JSON.parse(rawSession);
+      if (!session || !session.isAuthenticated || !session.userId) {
+        localStorage.removeItem(STORAGE_CURRENT_USER_KEY);
+        sessionStorage.removeItem(STORAGE_CURRENT_USER_KEY);
+        localStorage.removeItem(STORAGE_AUTH_SESSION_KEY);
+        sessionStorage.removeItem(STORAGE_AUTH_SESSION_KEY);
+        return null;
+      }
+
+      // Check current user key in storage
+      const rawUser =
+        localStorage.getItem(STORAGE_CURRENT_USER_KEY) ||
+        sessionStorage.getItem(STORAGE_CURRENT_USER_KEY);
+      if (rawUser) {
+        const parsed = JSON.parse(rawUser);
+        if (
+          parsed &&
+          (parsed.id === session.userId ||
+            parsed.email?.toLowerCase() === session.email?.toLowerCase())
+        ) {
+          return parsed;
+        }
+      }
+
+      // Fallback lookup by registered user id/email
+      const users = initializeUsers();
+      const found = users.find(
+        (u) =>
+          u.id === session.userId ||
+          u.email.toLowerCase() === session.email?.toLowerCase()
+      );
+      if (found) {
+        localStorage.setItem(STORAGE_CURRENT_USER_KEY, JSON.stringify(found));
+        return found;
+      }
+
+      return null;
     } catch {
+      localStorage.removeItem(STORAGE_CURRENT_USER_KEY);
+      sessionStorage.removeItem(STORAGE_CURRENT_USER_KEY);
+      localStorage.removeItem(STORAGE_AUTH_SESSION_KEY);
+      sessionStorage.removeItem(STORAGE_AUTH_SESSION_KEY);
       return null;
     }
   },
@@ -47,20 +90,20 @@ export const authService = {
     let found = users.find((u) => u.email.toLowerCase() === cleanEmail);
 
     if (!found) {
-      // Create user if testing random email during demo
+      // Create user if testing new email
       found = {
         id: `usr_${Date.now()}`,
         name: email.split('@')[0],
         fullName: email.split('@')[0],
         email: cleanEmail,
         phone: '+91 98765 43210',
-        role: 'player',
+        role: cleanEmail.includes('owner') || cleanEmail.includes('arena') ? 'facility_owner' : 'player',
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${cleanEmail}`,
         city: 'Bengaluru',
         sportsPreferences: ['Badminton', 'Football'],
         skillLevel: 'Intermediate',
         activityScore: 75,
-        gamesPlayed: 12,
+        gamesPlayed: 0,
         isVerified: true,
         isBanned: false,
         createdAt: new Date().toISOString(),
@@ -69,10 +112,23 @@ export const authService = {
       localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(users));
     }
 
+    const sessionPayload = {
+      userId: found.id,
+      email: found.email,
+      isAuthenticated: true,
+      loggedAt: new Date().toISOString(),
+    };
+
     if (rememberMe) {
+      localStorage.setItem(STORAGE_AUTH_SESSION_KEY, JSON.stringify(sessionPayload));
       localStorage.setItem(STORAGE_CURRENT_USER_KEY, JSON.stringify(found));
+      sessionStorage.removeItem(STORAGE_AUTH_SESSION_KEY);
+      sessionStorage.removeItem(STORAGE_CURRENT_USER_KEY);
     } else {
+      sessionStorage.setItem(STORAGE_AUTH_SESSION_KEY, JSON.stringify(sessionPayload));
       sessionStorage.setItem(STORAGE_CURRENT_USER_KEY, JSON.stringify(found));
+      localStorage.removeItem(STORAGE_AUTH_SESSION_KEY);
+      localStorage.removeItem(STORAGE_CURRENT_USER_KEY);
     }
 
     return found;
@@ -181,7 +237,15 @@ export const authService = {
       users.push(userToActivate);
     }
 
+    const sessionPayload = {
+      userId: userToActivate.id,
+      email: userToActivate.email,
+      isAuthenticated: true,
+      loggedAt: new Date().toISOString(),
+    };
+
     localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(users));
+    localStorage.setItem(STORAGE_AUTH_SESSION_KEY, JSON.stringify(sessionPayload));
     localStorage.setItem(STORAGE_CURRENT_USER_KEY, JSON.stringify(userToActivate));
     localStorage.removeItem(STORAGE_PENDING_OTP_KEY);
 
@@ -224,6 +288,13 @@ export const authService = {
       users.push(target);
       localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(users));
     }
+    const sessionPayload = {
+      userId: target.id,
+      email: target.email,
+      isAuthenticated: true,
+      loggedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(STORAGE_AUTH_SESSION_KEY, JSON.stringify(sessionPayload));
     localStorage.setItem(STORAGE_CURRENT_USER_KEY, JSON.stringify(target));
     return target;
   },
@@ -240,11 +311,18 @@ export const authService = {
     };
     users[index] = updatedUser;
     localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(users));
-    localStorage.setItem(STORAGE_CURRENT_USER_KEY, JSON.stringify(updatedUser));
+    
+    // Only update stored user if active session matches
+    const active = this.getCurrentUser();
+    if (active && active.id === userId) {
+      localStorage.setItem(STORAGE_CURRENT_USER_KEY, JSON.stringify(updatedUser));
+    }
     return updatedUser;
   },
 
   logout(): void {
+    localStorage.removeItem(STORAGE_AUTH_SESSION_KEY);
+    sessionStorage.removeItem(STORAGE_AUTH_SESSION_KEY);
     localStorage.removeItem(STORAGE_CURRENT_USER_KEY);
     sessionStorage.removeItem(STORAGE_CURRENT_USER_KEY);
   },
