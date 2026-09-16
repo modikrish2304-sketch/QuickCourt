@@ -9,9 +9,6 @@ import {
   CalendarCheck,
   LogOut,
   ChevronDown,
-  Sparkles,
-  Building2,
-  Shield,
 } from 'lucide-react';
 
 export interface NavbarProps {
@@ -41,7 +38,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
     { label: 'Home', route: '/' },
     { label: 'Find Venues', route: '/venues' },
     { label: 'My Bookings', route: '/my-bookings' },
-    ...(isAuthenticated ? [{ label: 'Owner Portal', route: '/owner/dashboard' }] : []),
   ];
 
   const handleLinkClick = (route: string) => {
@@ -156,19 +152,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentRoute, onNavigate }) => {
                   </div>
 
                   <div className="py-1">
-                    {(user.role === 'facility_owner' || user.role === 'admin') && (
-                      <button
-                        onClick={() => {
-                          setUserDropdownOpen(false);
-                          handleLinkClick('/owner/dashboard');
-                        }}
-                        className="w-full text-left px-4 py-2.5 text-xs font-bold text-emerald-700 hover:bg-emerald-50 flex items-center gap-2.5 transition-colors"
-                      >
-                        <Building2 className="w-4 h-4 text-emerald-600" />
-                        Owner Dashboard
-                      </button>
-                    )}
-
                     <button
                       onClick={() => {
                         setUserDropdownOpen(false);

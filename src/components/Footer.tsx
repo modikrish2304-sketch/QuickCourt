@@ -140,38 +140,42 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
         {/* Bottom copyright line */}
         <div className="mt-12 pt-8 border-t border-slate-200 flex flex-col items-center justify-center gap-6 text-center">
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-xs font-semibold text-slate-500">
+          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-xs font-semibold text-slate-500 uppercase tracking-wider">
             <button
               type="button"
               onClick={() => setActiveModal('privacy')}
               className="hover:text-emerald-700 transition-colors cursor-pointer"
             >
-              Privacy Policy
+              PRIVACY POLICY
             </button>
             <button
               type="button"
               onClick={() => setActiveModal('terms')}
               className="hover:text-emerald-700 transition-colors cursor-pointer"
             >
-              Terms of Service
+              TERMS OF SERVICE
             </button>
             <button
               type="button"
               onClick={() => setActiveModal('rules')}
               className="hover:text-emerald-700 transition-colors cursor-pointer"
             >
-              Court Rules
+              CLUB RULES
             </button>
-            <button onClick={() => onNavigate('/owner')} className="hover:text-emerald-700 transition-colors flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => onNavigate('/admin')}
+              className="hover:text-emerald-700 transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
               <Lock className="w-3.5 h-3.5" />
-              <span>Admin Access</span>
+              <span>ADMIN ACCESS</span>
             </button>
           </div>
           <p className="text-xs text-slate-400">© {new Date().getFullYear()} QuickCourt Sports Technologies Pvt. Ltd. All rights reserved.</p>
         </div>
       </div>
 
-      {/* Modal Dialog for Privacy Policy, Terms of Service, and Court Rules */}
+      {/* Modal Dialog for Privacy Policy, Terms of Service, and Club Rules */}
       {activeModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs"
@@ -193,12 +197,12 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
                   <h3 className="text-base font-bold text-slate-900">
                     {activeModal === 'privacy' && 'Privacy Policy'}
                     {activeModal === 'terms' && 'Terms of Service'}
-                    {activeModal === 'rules' && 'Court Rules'}
+                    {activeModal === 'rules' && 'Club Rules'}
                   </h3>
                   <p className="text-xs text-slate-500">
                     {activeModal === 'privacy' && 'QuickCourt Legal & Data Protection Notice'}
                     {activeModal === 'terms' && 'Player & Facility Booking Agreement'}
-                    {activeModal === 'rules' && 'Standard Playing Etiquette & Guidelines'}
+                    {activeModal === 'rules' && 'Standard Playing Etiquette & Club Guidelines'}
                   </p>
                 </div>
               </div>

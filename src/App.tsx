@@ -222,7 +222,31 @@ function AppContent() {
       );
     }
 
-    // 10. Owner Portal Routes
+    // 10. Admin Portal Routes (accessed via footer ADMIN ACCESS)
+    if (pathname.startsWith('/admin')) {
+      let adminContent = <AdminDashboard onNavigate={navigate} />;
+      if (pathname === '/admin/facilities') {
+        adminContent = <FacilityApprovalPage onNavigate={navigate} onShowToast={showToast} />;
+      } else if (pathname === '/admin/users') {
+        adminContent = <UserManagementPage onNavigate={navigate} onShowToast={showToast} />;
+      } else if (pathname === '/admin/bookings') {
+        adminContent = <BookingsOverviewPage onNavigate={navigate} onShowToast={showToast} />;
+      } else if (pathname === '/admin/reports') {
+        adminContent = <ReportsManagementPage onNavigate={navigate} onShowToast={showToast} />;
+      } else if (pathname === '/admin/profile') {
+        adminContent = <AdminProfilePage onNavigate={navigate} onShowToast={showToast} />;
+      } else if (pathname === '/admin/settings') {
+        adminContent = <PlatformSettingsPage onNavigate={navigate} onShowToast={showToast} />;
+      }
+
+      return (
+        <AdminLayout currentPath={pathname} onNavigate={navigate}>
+          {adminContent}
+        </AdminLayout>
+      );
+    }
+
+    // 11. Owner Portal Routes
     if (pathname === '/owner' || pathname === '/owner/dashboard') {
       return (
         <OwnerDashboard onNavigate={navigate} onShowToast={showToast} />
@@ -270,9 +294,10 @@ function AppContent() {
   };
 
   const isOwnerRoute = pathname.startsWith('/owner');
+  const isAdminRoute = pathname.startsWith('/admin');
   const isAuthRoute = pathname === '/signup' || pathname === '/auth/signup' || pathname === '/login' || pathname === '/auth/login';
 
-  if (isOwnerRoute) {
+  if (isOwnerRoute || isAdminRoute) {
     return (
       <div className="min-h-screen bg-[#F7F9F8] text-[#172033] font-sans antialiased">
         {activeToast && (

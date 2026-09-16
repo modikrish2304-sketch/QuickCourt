@@ -62,15 +62,9 @@ export const Footer: React.FC<{ navigate: (r: string) => void }> = ({ navigate }
           {/* For Venue Owners & Admins */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-200">
-              For Facility Partners
+              Platform Administration
             </h4>
             <ul className="space-y-2 text-xs">
-              <li>
-                <button onClick={() => navigate('/owner/dashboard')} className="hover:text-emerald-400 transition-colors flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-amber-400" />
-                  Owner Portal & Analytics
-                </button>
-              </li>
               <li>
                 <button onClick={() => navigate('/admin/dashboard')} className="hover:text-emerald-400 transition-colors flex items-center gap-1.5">
                   <ShieldCheck className="w-3.5 h-3.5 text-rose-400" />
